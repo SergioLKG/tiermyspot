@@ -1,5 +1,11 @@
 let userConfig = undefined
 
+try {
+  userConfig = await import('./sergiolkg.config')
+} catch (e) {
+  // ignore error
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
