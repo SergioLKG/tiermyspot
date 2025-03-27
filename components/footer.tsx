@@ -25,7 +25,7 @@ export function Footer() {
             Importar Playlist
           </Link>
           <a
-            href="https://github.com/yourusername/tiermyspot"
+            href="https://github.com/sergiolkg/tiermyspot"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
