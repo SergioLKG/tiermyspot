@@ -1,4 +1,4 @@
-# TierMySpot 💚
+# TierMySpot ![logo-tiermyspot](/public/logo-readme.svg)
 
 TierMySpot es una plataforma que te permite crear **tierlists** de tus artistas favoritos de **Spotify**. Puedes importar tus playlists y clasificarlas de manera individual o junto a tus amigos.
 
@@ -66,3 +66,5 @@ Si quieres contribuir, ¡eres bienvenido! Haz un **fork** del repositorio y env�
 
 ---
 **TierMySpot** - Clasifica tu música, a tu manera. 🎵
+
+![screenshot-page](public/screenshot.png)
