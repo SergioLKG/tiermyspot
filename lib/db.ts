@@ -68,11 +68,35 @@ export const rankings = pgTable("rankings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 })
 
+// Función auxiliar para manejar la serialización de objetos
+function safeSerialize(obj) {
+  if (!obj) return obj
+
+  // Si es un array, aplicar a cada elemento
+  if (Array.isArray(obj)) {
+    return obj.map((item) => safeSerialize(item))
+  }
+
+  // Si es un objeto, crear una copia limpia
+  if (typeof obj === "object") {
+    const result = {}
+    for (const key in obj) {
+      // Excluir propiedades que puedan causar referencias circulares
+      if (key !== "table" && key !== "schema" && key !== "_") {
+        result[key] = safeSerialize(obj[key])
+      }
+    }
+    return result
+  }
+
+  return obj
+}
+
 // Funciones de acceso a datos
 export async function getUserByEmail(email: string) {
   try {
     const result = await db.select().from(users).where(sql`${users.email} = ${email}`)
-    return result[0]
+    return safeSerialize(result[0])
   } catch (error) {
     console.error("Error al obtener usuario por email:", error)
     throw error
@@ -82,7 +106,7 @@ export async function getUserByEmail(email: string) {
 export async function createUser(userData: { email: string; name?: string; image?: string; spotifyId?: string }) {
   try {
     const result = await db.insert(users).values(userData).returning()
-    return result[0]
+    return safeSerialize(result[0])
   } catch (error) {
     console.error("Error al crear usuario:", error)
     throw error
@@ -111,7 +135,7 @@ export async function getOrCreateUser(userData: { email: string; name?: string; 
           })
           .where(sql`${users.id} = ${user.id}`)
           .returning()
-        user = result[0]
+        user = safeSerialize(result[0])
       }
     }
 
@@ -124,7 +148,7 @@ export async function getOrCreateUser(userData: { email: string; name?: string; 
 
 export async function getPlaylistBySpotifyId(spotifyId: string) {
   const result = await db.select().from(playlists).where(sql`${playlists.spotifyId} = ${spotifyId}`)
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function createPlaylist(playlistData: {
@@ -136,7 +160,7 @@ export async function createPlaylist(playlistData: {
   privatePlaylistName?: string
 }) {
   const result = await db.insert(playlists).values(playlistData).returning()
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function getOrCreatePlaylist(playlistData: {
@@ -165,7 +189,7 @@ export async function addUserToPlaylist(userId: number, playlistId: number) {
 
   if (existing.length === 0) {
     const result = await db.insert(userPlaylists).values({ userId, playlistId }).returning()
-    return result[0]
+    return safeSerialize(result[0])
   }
 
   // Si estaba oculta, la hacemos visible de nuevo
@@ -175,10 +199,10 @@ export async function addUserToPlaylist(userId: number, playlistId: number) {
       .set({ isHidden: false })
       .where(sql`${userPlaylists.id} = ${existing[0].id}`)
       .returning()
-    return result[0]
+    return safeSerialize(result[0])
   }
 
-  return existing[0]
+  return safeSerialize(existing[0])
 }
 
 export async function hideUserPlaylist(userId: number, playlistId: number) {
@@ -187,7 +211,7 @@ export async function hideUserPlaylist(userId: number, playlistId: number) {
     .set({ isHidden: true })
     .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
     .returning()
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function getUserPlaylists(userId: number, includeHidden = false) {
@@ -211,17 +235,18 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
     query = query.where(sql`${userPlaylists.isHidden} = false`)
   }
 
-  return await query
+  const result = await query
+  return safeSerialize(result)
 }
 
 export async function getArtistBySpotifyId(spotifyId: string) {
   const result = await db.select().from(artists).where(sql`${artists.spotifyId} = ${spotifyId}`)
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function createArtist(artistData: { spotifyId: string; name: string; image?: string }) {
   const result = await db.insert(artists).values(artistData).returning()
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function getOrCreateArtist(artistData: { spotifyId: string; name: string; image?: string }) {
@@ -243,15 +268,15 @@ export async function addArtistToPlaylist(playlistId: number, artistId: number) 
 
   if (existing.length === 0) {
     const result = await db.insert(playlistArtists).values({ playlistId, artistId }).returning()
-    return result[0]
+    return safeSerialize(result[0])
   }
 
-  return existing[0]
+  return safeSerialize(existing[0])
 }
 
 export async function getTrackBySpotifyId(spotifyId: string) {
   const result = await db.select().from(tracks).where(sql`${tracks.spotifyId} = ${spotifyId}`)
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function createTrack(trackData: {
@@ -263,7 +288,7 @@ export async function createTrack(trackData: {
   artistId: number
 }) {
   const result = await db.insert(tracks).values(trackData).returning()
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function getOrCreateTrack(trackData: {
@@ -284,11 +309,12 @@ export async function getOrCreateTrack(trackData: {
 }
 
 export async function getArtistTracks(artistId: number) {
-  return await db.select().from(tracks).where(sql`${tracks.artistId} = ${artistId}`)
+  const result = await db.select().from(tracks).where(sql`${tracks.artistId} = ${artistId}`)
+  return safeSerialize(result)
 }
 
 export async function getPlaylistArtists(playlistId: number) {
-  return await db
+  const result = await db
     .select({
       id: artists.id,
       spotifyId: artists.spotifyId,
@@ -298,6 +324,8 @@ export async function getPlaylistArtists(playlistId: number) {
     .from(playlistArtists)
     .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
     .where(sql`${playlistArtists.playlistId} = ${playlistId}`)
+
+  return safeSerialize(result)
 }
 
 export async function getUserRanking(userId: number, playlistId: number, artistId: number) {
@@ -307,7 +335,7 @@ export async function getUserRanking(userId: number, playlistId: number, artistI
     .where(
       sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
     )
-  return result[0]
+  return safeSerialize(result[0])
 }
 
 export async function setUserRanking(userId: number, playlistId: number, artistId: number, tierId: string) {
@@ -319,33 +347,36 @@ export async function setUserRanking(userId: number, playlistId: number, artistI
       .set({ tierId, updatedAt: new Date() })
       .where(sql`${rankings.id} = ${existing.id}`)
       .returning()
-    return result[0]
+    return safeSerialize(result[0])
   } else {
     const result = await db.insert(rankings).values({ userId, playlistId, artistId, tierId }).returning()
-    return result[0]
+    return safeSerialize(result[0])
   }
 }
 
 export async function deleteUserRanking(userId: number, playlistId: number, artistId: number) {
-  return await db
+  const result = await db
     .delete(rankings)
     .where(
       sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
     )
+  return safeSerialize(result)
 }
 
 export async function getUserRankings(userId: number, playlistId: number) {
-  return await db
+  const result = await db
     .select({
       artistId: rankings.artistId,
       tierId: rankings.tierId,
     })
     .from(rankings)
     .where(sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId}`)
+
+  return safeSerialize(result)
 }
 
 export async function getPlaylistRankings(playlistId: number) {
-  return await db
+  const result = await db
     .select({
       userId: rankings.userId,
       artistId: rankings.artistId,
@@ -353,6 +384,8 @@ export async function getPlaylistRankings(playlistId: number) {
     })
     .from(rankings)
     .where(sql`${rankings.playlistId} = ${playlistId}`)
+
+  return safeSerialize(result)
 }
 
 export async function getPlaylistUserCount(playlistId: number) {

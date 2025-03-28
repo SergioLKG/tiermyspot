@@ -15,7 +15,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const error = searchParams.get("error")
+  let error = searchParams.get("error")
+  if (error && (error.includes('403') || error.includes('Forbidden'))) {
+    error = 'No tienes acceso a esta aplicación. Por favor, contacta con un administrador para ser añadido como tester.';
+  } else {
+    error = 'Error de autenticación. Por favor, inténtalo de nuevo.';
+  }
   const [redirectAttempted, setRedirectAttempted] = useState(false)
 
   // Redirect if already logged in, but only once
