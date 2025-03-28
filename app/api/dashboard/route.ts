@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
 import { getUserByEmail, getUserPlaylists, hideUserPlaylist } from "@/lib/db"
 
+export const POSTGRES_DATABASE_URL = (process.env.POSTGRES_DATABASE_URL || process.env.DATABASE_URL || "");
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
