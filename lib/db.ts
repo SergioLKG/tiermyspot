@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/neon-http"
 import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/pg-core"
 
 // Configuración de la conexión a Neon
-const sql = neon(process.env.POSTGRES_DATABASE_URL!)
+const sql = neon(process.env.POSTGRES_DATABASE_URL || process.env.DATABASE_URL || "");
 export const db = drizzle(sql)
 
 // Definición de tablas

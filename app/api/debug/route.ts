@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sql = neon(process.env.POSTGRES_DATABASE_URL!);
+    const sql = neon(process.env.POSTGRES_DATABASE_URL || process.env.DATABASE_URL || "");
 
     // Verificar la conexión a la base de datos
     const result = await sql`SELECT NOW() as time`;
