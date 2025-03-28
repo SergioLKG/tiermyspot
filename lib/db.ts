@@ -14,8 +14,8 @@ export function getDbConnection() {
     )
   }
 
-  const sql = neon(connectionString)
-  return drizzle(sql)
+  const neonClient = neon(connectionString)
+  return drizzle(neonClient)
 }
 
 // No inicializar la conexión aquí, solo cuando se necesite
@@ -111,10 +111,8 @@ function safeSerialize(obj) {
 export async function getUserByEmail(email: string) {
   try {
     const db = getDbConnection()
-    const result = await db
-      .select()
-      .from(users)
-      .where((sql) => sql`${users.email} = ${email}`)
+    // Usar sql`` directamente
+    const result = await db.select().from(users).where(sql`${users.email} = ${email}`)
     return safeSerialize(result[0])
   } catch (error) {
     console.error("Error al obtener usuario por email:", error)
@@ -154,7 +152,7 @@ export async function getOrCreateUser(userData: { email: string; name?: string; 
             image: userData.image || user.image,
             spotifyId: userData.spotifyId || user.spotifyId,
           })
-          .where((sql) => sql`${users.id} = ${user.id}`)
+          .where(sql`${users.id} = ${user.id}`)
           .returning()
         user = safeSerialize(result[0])
       }
@@ -169,10 +167,7 @@ export async function getOrCreateUser(userData: { email: string; name?: string; 
 
 export async function getPlaylistBySpotifyId(spotifyId: string) {
   const db = getDbConnection()
-  const result = await db
-    .select()
-    .from(playlists)
-    .where((sql) => sql`${playlists.spotifyId} = ${spotifyId}`)
+  const result = await db.select().from(playlists).where(sql`${playlists.spotifyId} = ${spotifyId}`)
   return safeSerialize(result[0])
 }
 
@@ -197,7 +192,6 @@ export async function getOrCreatePlaylist(playlistData: {
   isPrivate?: boolean
   privatePlaylistName?: string
 }) {
-  const db = getDbConnection()
   let playlist = await getPlaylistBySpotifyId(playlistData.spotifyId)
 
   if (!playlist) {
@@ -213,7 +207,7 @@ export async function addUserToPlaylist(userId: number, playlistId: number) {
   const existing = await db
     .select()
     .from(userPlaylists)
-    .where((sql) => sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+    .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
 
   if (existing.length === 0) {
     const result = await db.insert(userPlaylists).values({ userId, playlistId }).returning()
@@ -225,7 +219,7 @@ export async function addUserToPlaylist(userId: number, playlistId: number) {
     const result = await db
       .update(userPlaylists)
       .set({ isHidden: false })
-      .where((sql) => sql`${userPlaylists.id} = ${existing[0].id}`)
+      .where(sql`${userPlaylists.id} = ${existing[0].id}`)
       .returning()
     return safeSerialize(result[0])
   }
@@ -238,7 +232,7 @@ export async function hideUserPlaylist(userId: number, playlistId: number) {
   const result = await db
     .update(userPlaylists)
     .set({ isHidden: true })
-    .where((sql) => sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+    .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
     .returning()
   return safeSerialize(result[0])
 }
@@ -258,11 +252,11 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
       createdAt: playlists.createdAt,
     })
     .from(userPlaylists)
-    .innerJoin(playlists, (sql) => sql`${userPlaylists.playlistId} = ${playlists.id}`)
-    .where((sql) => sql`${userPlaylists.userId} = ${userId}`)
+    .innerJoin(playlists, sql`${userPlaylists.playlistId} = ${playlists.id}`)
+    .where(sql`${userPlaylists.userId} = ${userId}`)
 
   if (!includeHidden) {
-    query = query.where((sql) => sql`${userPlaylists.isHidden} = false`)
+    query = query.where(sql`${userPlaylists.isHidden} = false`)
   }
 
   const result = await query
@@ -271,10 +265,7 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
 
 export async function getArtistBySpotifyId(spotifyId: string) {
   const db = getDbConnection()
-  const result = await db
-    .select()
-    .from(artists)
-    .where((sql) => sql`${artists.spotifyId} = ${spotifyId}`)
+  const result = await db.select().from(artists).where(sql`${artists.spotifyId} = ${spotifyId}`)
   return safeSerialize(result[0])
 }
 
@@ -285,7 +276,6 @@ export async function createArtist(artistData: { spotifyId: string; name: string
 }
 
 export async function getOrCreateArtist(artistData: { spotifyId: string; name: string; image?: string }) {
-  const db = getDbConnection()
   let artist = await getArtistBySpotifyId(artistData.spotifyId)
 
   if (!artist) {
@@ -301,7 +291,7 @@ export async function addArtistToPlaylist(playlistId: number, artistId: number) 
   const existing = await db
     .select()
     .from(playlistArtists)
-    .where((sql) => sql`${playlistArtists.playlistId} = ${playlistId} AND ${playlistArtists.artistId} = ${artistId}`)
+    .where(sql`${playlistArtists.playlistId} = ${playlistId} AND ${playlistArtists.artistId} = ${artistId}`)
 
   if (existing.length === 0) {
     const result = await db.insert(playlistArtists).values({ playlistId, artistId }).returning()
@@ -313,10 +303,7 @@ export async function addArtistToPlaylist(playlistId: number, artistId: number) 
 
 export async function getTrackBySpotifyId(spotifyId: string) {
   const db = getDbConnection()
-  const result = await db
-    .select()
-    .from(tracks)
-    .where((sql) => sql`${tracks.spotifyId} = ${spotifyId}`)
+  const result = await db.select().from(tracks).where(sql`${tracks.spotifyId} = ${spotifyId}`)
   return safeSerialize(result[0])
 }
 
@@ -341,7 +328,6 @@ export async function getOrCreateTrack(trackData: {
   albumImage?: string
   artistId: number
 }) {
-  const db = getDbConnection()
   let track = await getTrackBySpotifyId(trackData.spotifyId)
 
   if (!track) {
@@ -353,10 +339,7 @@ export async function getOrCreateTrack(trackData: {
 
 export async function getArtistTracks(artistId: number) {
   const db = getDbConnection()
-  const result = await db
-    .select()
-    .from(tracks)
-    .where((sql) => sql`${tracks.artistId} = ${artistId}`)
+  const result = await db.select().from(tracks).where(sql`${tracks.artistId} = ${artistId}`)
   return safeSerialize(result)
 }
 
@@ -370,8 +353,8 @@ export async function getPlaylistArtists(playlistId: number) {
       image: artists.image,
     })
     .from(playlistArtists)
-    .innerJoin(artists, (sql) => sql`${playlistArtists.artistId} = ${artists.id}`)
-    .where((sql) => sql`${playlistArtists.playlistId} = ${playlistId}`)
+    .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
+    .where(sql`${playlistArtists.playlistId} = ${playlistId}`)
 
   return safeSerialize(result)
 }
@@ -382,21 +365,20 @@ export async function getUserRanking(userId: number, playlistId: number, artistI
     .select()
     .from(rankings)
     .where(
-      (sql) =>
-        sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
+      sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
     )
   return safeSerialize(result[0])
 }
 
 export async function setUserRanking(userId: number, playlistId: number, artistId: number, tierId: string) {
-  const db = getDbConnection()
   const existing = await getUserRanking(userId, playlistId, artistId)
+  const db = getDbConnection()
 
   if (existing) {
     const result = await db
       .update(rankings)
       .set({ tierId, updatedAt: new Date() })
-      .where((sql) => sql`${rankings.id} = ${existing.id}`)
+      .where(sql`${rankings.id} = ${existing.id}`)
       .returning()
     return safeSerialize(result[0])
   } else {
@@ -410,8 +392,7 @@ export async function deleteUserRanking(userId: number, playlistId: number, arti
   const result = await db
     .delete(rankings)
     .where(
-      (sql) =>
-        sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
+      sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
     )
   return safeSerialize(result)
 }
@@ -424,7 +405,7 @@ export async function getUserRankings(userId: number, playlistId: number) {
       tierId: rankings.tierId,
     })
     .from(rankings)
-    .where((sql) => sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId}`)
+    .where(sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId}`)
 
   return safeSerialize(result)
 }
@@ -438,7 +419,7 @@ export async function getPlaylistRankings(playlistId: number) {
       tierId: rankings.tierId,
     })
     .from(rankings)
-    .where((sql) => sql`${rankings.playlistId} = ${playlistId}`)
+    .where(sql`${rankings.playlistId} = ${playlistId}`)
 
   return safeSerialize(result)
 }
@@ -448,16 +429,13 @@ export async function getPlaylistUserCount(playlistId: number) {
   const result = await db
     .select({ count: sql<number>`count(distinct ${rankings.userId})` })
     .from(rankings)
-    .where((sql) => sql`${rankings.playlistId} = ${playlistId}`)
+    .where(sql`${rankings.playlistId} = ${playlistId}`)
   return result[0]?.count || 0
 }
 
 export async function getFullPlaylistData(playlistId: number) {
   const db = getDbConnection()
-  const playlistData = await db
-    .select()
-    .from(playlists)
-    .where((sql) => sql`${playlists.id} = ${playlistId}`)
+  const playlistData = await db.select().from(playlists).where(sql`${playlists.id} = ${playlistId}`)
 
   if (playlistData.length === 0) {
     return null
