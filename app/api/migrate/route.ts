@@ -1,8 +1,24 @@
-import { NextResponse } from "next/server"
-import { sql } from "@vercel/postgres"
+import { NextRequest, NextResponse } from "next/server"
+import { neon } from "@neondatabase/serverless"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Buscar ?password= en los parametros de la url, y comparar contra MIGRATION_PASSWORD en el .env
+  const { searchParams } = new URL(request.url)
+  const password = searchParams.get("password");
+
+  if (password !== process.env.NEXTAUTH_SECRET) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Contraseña incorrecta. No se puede realizar la migración.",
+      },
+      { status: 401 },
+    )
+  }
+
   try {
+    const sql = neon(process.env.POSTGRES_DATABASE_URL!)
+
     // Crear tabla de usuarios
     await sql`
       CREATE TABLE IF NOT EXISTS users (

@@ -1,6 +1,10 @@
-import { sql } from "@vercel/postgres"
-import { drizzle } from "drizzle-orm/vercel-postgres"
+import { neon } from "@neondatabase/serverless"
+import { drizzle } from "drizzle-orm/neon-http"
 import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/pg-core"
+
+// Configuración de la conexión a Neon
+const sql = neon(process.env.POSTGRES_DATABASE_URL!)
+export const db = drizzle(sql)
 
 // Definición de tablas
 export const users = pgTable("users", {
@@ -64,46 +68,58 @@ export const rankings = pgTable("rankings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 })
 
-// Cliente de Drizzle
-export const db = drizzle(sql)
-
 // Funciones de acceso a datos
 export async function getUserByEmail(email: string) {
-  const result = await db.select().from(users).where(sql`${users.email} = ${email}`)
-  return result[0]
+  try {
+    const result = await db.select().from(users).where(sql`${users.email} = ${email}`)
+    return result[0]
+  } catch (error) {
+    console.error("Error al obtener usuario por email:", error)
+    throw error
+  }
 }
 
 export async function createUser(userData: { email: string; name?: string; image?: string; spotifyId?: string }) {
-  const result = await db.insert(users).values(userData).returning()
-  return result[0]
+  try {
+    const result = await db.insert(users).values(userData).returning()
+    return result[0]
+  } catch (error) {
+    console.error("Error al crear usuario:", error)
+    throw error
+  }
 }
 
 export async function getOrCreateUser(userData: { email: string; name?: string; image?: string; spotifyId?: string }) {
-  let user = await getUserByEmail(userData.email)
+  try {
+    let user = await getUserByEmail(userData.email)
 
-  if (!user) {
-    user = await createUser(userData)
-  } else {
-    // Actualizar datos del usuario si han cambiado
-    if (
-      (userData.name && userData.name !== user.name) ||
-      (userData.image && userData.image !== user.image) ||
-      (userData.spotifyId && userData.spotifyId !== user.spotifyId)
-    ) {
-      const result = await db
-        .update(users)
-        .set({
-          name: userData.name || user.name,
-          image: userData.image || user.image,
-          spotifyId: userData.spotifyId || user.spotifyId,
-        })
-        .where(sql`${users.id} = ${user.id}`)
-        .returning()
-      user = result[0]
+    if (!user) {
+      user = await createUser(userData)
+    } else {
+      // Actualizar datos del usuario si han cambiado
+      if (
+        (userData.name && userData.name !== user.name) ||
+        (userData.image && userData.image !== user.image) ||
+        (userData.spotifyId && userData.spotifyId !== user.spotifyId)
+      ) {
+        const result = await db
+          .update(users)
+          .set({
+            name: userData.name || user.name,
+            image: userData.image || user.image,
+            spotifyId: userData.spotifyId || user.spotifyId,
+          })
+          .where(sql`${users.id} = ${user.id}`)
+          .returning()
+        user = result[0]
+      }
     }
-  }
 
-  return user
+    return user
+  } catch (error) {
+    console.error("Error en getOrCreateUser:", error)
+    throw error
+  }
 }
 
 export async function getPlaylistBySpotifyId(spotifyId: string) {
