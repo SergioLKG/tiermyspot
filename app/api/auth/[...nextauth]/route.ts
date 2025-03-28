@@ -1,6 +1,7 @@
-import NextAuth from "next-auth"
-import SpotifyProvider from "next-auth/providers/spotify"
-import { getOrCreateUser } from "@/lib/db"
+import NextAuth from "next-auth";
+import SpotifyProvider from "next-auth/providers/spotify";
+import { getOrCreateUser } from "@/lib/db";
+import { refreshSpotifyToken } from "@/lib/spotify-api";
 
 const scopes = [
   "user-read-email",
@@ -8,7 +9,7 @@ const scopes = [
   "playlist-read-collaborative",
   "user-read-currently-playing",
   "user-read-playback-state",
-].join(" ")
+].join(" ");
 
 export const authOptions = {
   providers: [
@@ -26,56 +27,37 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {
-        token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
-        token.expiresAt = account.expires_at
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = Date.now() + account.expires_at * 1000;
 
         if (profile) {
-          token.spotifyId = profile.id
+          token.spotifyId = profile.id;
         }
       }
 
       if (token.expiresAt && Date.now() >= token.expiresAt * 1000) {
         try {
-          const response = await fetch("https://accounts.spotify.com/api/token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Basic ${Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString("base64")}`,
-            },
-            body: new URLSearchParams({
-              grant_type: "refresh_token",
-              refresh_token: token.refreshToken,
-            }),
-          })
-
-          const refreshedTokens = await response.json()
-
-          if (!response.ok) {
-            throw refreshedTokens
-          }
-
-          return {
-            ...token,
-            accessToken: refreshedTokens.access_token,
-            expiresAt: Math.floor(Date.now() / 1000 + refreshedTokens.expires_in),
-            refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
-          }
+          const newTokens = await refreshSpotifyToken(token.refreshToken);
+          token.accessToken = newTokens.accessToken;
+          token.refreshToken = newTokens.refreshToken;
+          token.expiresAt = newTokens.expiresAt;
         } catch (error) {
-          console.error("Error refreshing access token", error)
-          return { ...token, error: "RefreshAccessTokenError" }
+          console.error("Error refreshing access token", error);
+          return { ...token, error: "RefreshAccessTokenError" };
         }
       }
 
-      return token
+      return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken
-      session.refreshToken = token.refreshToken
-      session.error = token.error
-      session.spotifyId = token.spotifyId
+      session.accessToken = token.accessToken;
+      session.refreshToken = token.refreshToken;
+      session.error = token.error;
+      session.spotifyId = token.spotifyId;
+      session.expiresAt = token.expiresAt;
 
-      return session
+      return session;
     },
     async signIn({ user, account, profile }) {
       try {
@@ -85,12 +67,12 @@ export const authOptions = {
             name: user.name,
             image: user.image,
             spotifyId: profile.id,
-          })
+          });
         }
-        return true
+        return true;
       } catch (error) {
-        console.error("Error saving user to database:", error)
-        return true // Permitir el inicio de sesión incluso si hay un error en la base de datos
+        console.error("Error saving user to database:", error);
+        return true; // Permitir el inicio de sesión incluso si hay un error en la base de datos
       }
     },
   },
@@ -100,9 +82,8 @@ export const authOptions = {
   },
   debug: process.env.NODE_ENV === "development",
   secret: process.env.NEXTAUTH_SECRET,
-}
+};
 
-const handler = NextAuth(authOptions)
+const handler = NextAuth(authOptions);
 
-export { handler as GET, handler as POST }
-
+export { handler as GET, handler as POST };
