@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { NextRequest, NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
 
 export async function GET(request: NextRequest) {
   // Buscar ?password= en los parametros de la url, y comparar contra MIGRATION_PASSWORD en el .env
-  const { searchParams } = new URL(request.url)
+  const { searchParams } = new URL(request.url);
   const password = searchParams.get("password");
 
   if (password !== process.env.NEXTAUTH_SECRET) {
@@ -12,12 +12,12 @@ export async function GET(request: NextRequest) {
         success: false,
         error: "Contraseña incorrecta. No se puede realizar la migración.",
       },
-      { status: 401 },
-    )
+      { status: 401 }
+    );
   }
 
   try {
-    const sql = neon(process.env.POSTGRES_DATABASE_URL || process.env.DATABASE_URL || "");
+    const sql = neon(process.env.DATABASE_URL || process.env.POSTGRES_DATABASE_URL || "");
 
     // Crear tabla de usuarios
     await sql`
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         spotify_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `
+    `;
 
     // Crear tabla de playlists
     await sql`
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         private_playlist_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `
+    `;
 
     // Crear tabla de relación usuario-playlist
     await sql`
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         is_hidden BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `
+    `;
 
     // Crear tabla de artistas
     await sql`
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         name TEXT NOT NULL,
         image TEXT
       );
-    `
+    `;
 
     // Crear tabla de relación playlist-artista
     await sql`
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         playlist_id INTEGER NOT NULL,
         artist_id INTEGER NOT NULL
       );
-    `
+    `;
 
     // Crear tabla de pistas
     await sql`
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         album_image TEXT,
         artist_id INTEGER NOT NULL
       );
-    `
+    `;
 
     // Crear tabla de rankings
     await sql`
@@ -99,12 +99,17 @@ export async function GET(request: NextRequest) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `
+    `;
 
-    return NextResponse.json({ success: true, message: "Tablas creadas correctamente" })
+    return NextResponse.json({
+      success: true,
+      message: "Tablas creadas correctamente",
+    });
   } catch (error) {
-    console.error("Error al crear tablas:", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error("Error al crear tablas:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
-
