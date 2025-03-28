@@ -18,8 +18,6 @@ export default function LoginPage() {
   let error = searchParams.get("error")
   if (error && (error.includes('403') || error.includes('Forbidden'))) {
     error = 'No tienes acceso a esta aplicación. Por favor, contacta con un administrador para ser añadido como tester.';
-  } else {
-    error = 'Error de autenticación. Por favor, inténtalo de nuevo.';
   }
   const [redirectAttempted, setRedirectAttempted] = useState(false)
 
