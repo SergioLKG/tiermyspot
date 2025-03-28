@@ -33,15 +33,17 @@ export default function TierlistPage() {
   const [playlistId, setPlaylistId] = useState("")
   const [playlistStats, setPlaylistStats] = useState({ userCount: 0 })
   const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
+  const [error, setError] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState("")
+  const internalRouter = useRouter()
   const searchParams = useSearchParams()
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login")
+      internalRouter.push("/login")
     }
-  }, [status, router])
+  }, [status, internalRouter])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,9 +57,12 @@ export default function TierlistPage() {
 
         if (!id) {
           // Si no hay ID en los parámetros, redirigir a importar
-          router.push("/import-playlist")
+          internalRouter.push("/import-playlist")
           return
         }
+
+        // Mostrar mensaje de carga específico
+        setLoadingMessage("Cargando datos de la playlist...")
 
         // Obtener datos de la playlist
         const playlistResponse = await fetch(`/api/playlists/${id}`)
@@ -84,6 +89,7 @@ export default function TierlistPage() {
         setCurrentTrackIndices(initialIndices)
 
         // Obtener estadísticas de la playlist
+        setLoadingMessage("Cargando estadísticas...")
         const statsResponse = await fetch(`/api/playlists/${id}/stats`)
 
         if (statsResponse.ok) {
@@ -92,6 +98,7 @@ export default function TierlistPage() {
         }
 
         // Obtener rankings del usuario
+        setLoadingMessage("Cargando tus rankings...")
         const rankingsResponse = await fetch(`/api/rankings?playlistId=${id}&type=user`)
 
         if (rankingsResponse.ok) {
@@ -100,8 +107,10 @@ export default function TierlistPage() {
         }
       } catch (error) {
         console.error("Error al cargar datos:", error)
+        setError("Error al cargar los datos. Por favor, intenta de nuevo.")
       } finally {
         setIsLoading(false)
+        setLoadingMessage("")
       }
     }
 
@@ -114,7 +123,7 @@ export default function TierlistPage() {
         audio.src = ""
       }
     }
-  }, [router, session, status, searchParams])
+  }, [internalRouter, session, status, searchParams])
 
   const handleRankArtist = async (artistId, tierId) => {
     try {

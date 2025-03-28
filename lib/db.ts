@@ -460,3 +460,49 @@ export async function getFullPlaylistData(playlistId: number) {
   }
 }
 
+// Añadir esta función a lib/db.ts
+export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
+  try {
+    const db = getDbConnection()
+    const playlistData = await db.select().from(playlists).where(sql`${playlists.spotifyId} = ${spotifyId}`)
+
+    if (playlistData.length === 0) {
+      return null
+    }
+
+    const playlist = playlistData[0]
+
+    // Obtener artistas de la playlist
+    const artistsData = await db
+      .select({
+        id: artists.id,
+        spotifyId: artists.spotifyId,
+        name: artists.name,
+        image: artists.image,
+      })
+      .from(playlistArtists)
+      .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
+      .where(sql`${playlistArtists.playlistId} = ${playlist.id}`)
+
+    const artistsWithTracks = []
+
+    // Obtener pistas para cada artista
+    for (const artist of artistsData) {
+      const tracksData = await db.select().from(tracks).where(sql`${tracks.artistId} = ${artist.id}`)
+
+      artistsWithTracks.push({
+        ...artist,
+        tracks: safeSerialize(tracksData),
+      })
+    }
+
+    return {
+      ...playlist,
+      artists: artistsWithTracks,
+    }
+  } catch (error) {
+    console.error("Error al obtener datos completos de playlist por Spotify ID:", error)
+    throw error
+  }
+}
+

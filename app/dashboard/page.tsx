@@ -84,6 +84,7 @@ export default function Dashboard() {
       }
 
       // Actualizar la lista de playlists
+      
       setPublicPlaylists(publicPlaylists.filter((playlist) => playlist.id !== playlistId))
       setPrivatePlaylists(privatePlaylists.filter((playlist) => playlist.id !== playlistId))
 

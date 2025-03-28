@@ -15,50 +15,116 @@ interface SpotifyErrorResponse {
   };
 }
 
+export function extractPlaylistId(url: string): string | null {
+  const patterns = [
+    /spotify:playlist:([a-zA-Z0-9]+)/,
+    /open\.spotify\.com\/playlist\/([a-zA-Z0-9]+)/,
+    /spotify\.com\/playlist\/([a-zA-Z0-9]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+// Caché en memoria para reducir llamadas a la API de Spotify
+const playlistCache = new Map();
+const CACHE_EXPIRY = 3600000; // 1 hora en milisegundos
+
 // Función de espera para manejar retries
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Clase para manejar errores de Spotify de manera más estructurada
 class SpotifyAPIError extends Error {
   status: number;
-  
+
   constructor(message: string, status: number) {
     super(message);
-    this.name = 'SpotifyAPIError';
+    this.name = "SpotifyAPIError";
     this.status = status;
   }
 }
 
 // Función para refrescar el token de Spotify
-export async function refreshSpotifyToken(refreshToken: string): Promise<SpotifyTokens> {
-  const response = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
+export async function refreshSpotifyToken(
+  refreshToken: string
+): Promise<SpotifyTokens> {
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString('base64')}`
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+      ).toString("base64")}`,
     },
     body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken
-    })
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
   });
 
   if (!response.ok) {
-    throw new SpotifyAPIError('Failed to refresh token', response.status);
+    throw new SpotifyAPIError("Failed to refresh token", response.status);
   }
 
   const data = await response.json();
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token || refreshToken,
-    expiresAt: Date.now() + (data.expires_in * 1000)
+    expiresAt: Date.now() + data.expires_in * 1000,
   };
+}
+
+async function getPlaylistData(playlistId, accessToken) {
+  // Verificar si tenemos datos en caché y si son recientes
+  const cacheKey = `playlist_${playlistId}`;
+  const cachedData = playlistCache.get(cacheKey);
+
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
+    console.log("Usando datos de playlist en caché");
+    return cachedData.data;
+  }
+
+  console.log("Obteniendo datos de playlist desde Spotify API");
+  const response = await fetch(
+    `https://api.spotify.com/v1/playlists/${playlistId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error("Error fetching playlist data:", errorData);
+    throw new Error(
+      `Failed to fetch playlist data: ${
+        errorData.error.message || "Unknown error"
+      }`
+    );
+  }
+
+  const data = await response.json();
+
+  // Guardar en caché
+  playlistCache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+  });
+
+  return data;
 }
 
 // Función de fetch personalizada con manejo de errores y rate limiting
 async function spotifyFetch(
-  url: string, 
-  options: RequestInit = {}, 
+  url: string,
+  options: RequestInit = {},
   maxRetries: number = 3
 ): Promise<Response> {
   let retries = 0;
@@ -70,17 +136,19 @@ async function spotifyFetch(
       // Manejar códigos de error específicos
       if (response.status === 401) {
         // Token expirado, intentar refrescar
-        throw new SpotifyAPIError('Unauthorized - Token may be expired', 401);
+        throw new SpotifyAPIError("Unauthorized - Token may be expired", 401);
       }
 
       if (response.status === 429) {
         // Rate limiting
-        const retryAfter = response.headers.get('Retry-After');
-        const waitTime = retryAfter 
-          ? parseInt(retryAfter, 10) * 1000 
+        const retryAfter = response.headers.get("Retry-After");
+        const waitTime = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
           : Math.pow(2, retries) * 1000;
 
-        console.warn(`Spotify API Rate Limited. Waiting ${waitTime/1000} seconds.`);
+        console.warn(
+          `Spotify API Rate Limited. Waiting ${waitTime / 1000} seconds.`
+        );
         await wait(waitTime);
         retries++;
         continue;
@@ -88,9 +156,11 @@ async function spotifyFetch(
 
       if (!response.ok) {
         // Parsear el error de Spotify si es posible
-        const errorData: SpotifyErrorResponse = await response.json().catch(() => ({}));
+        const errorData: SpotifyErrorResponse = await response
+          .json()
+          .catch(() => ({}));
         throw new SpotifyAPIError(
-          errorData.error?.message || response.statusText, 
+          errorData.error?.message || response.statusText,
           response.status
         );
       }
@@ -105,13 +175,13 @@ async function spotifyFetch(
             const newTokens = await refreshSpotifyToken(session.refreshToken);
             // Aquí deberías actualizar el token en tu sistema de sesión
             // Este es un punto donde necesitarás implementar la lógica específica de tu aplicación
-            
+
             // Actualizar las opciones con el nuevo token
             options.headers = {
               ...options.headers,
-              'Authorization': `Bearer ${newTokens.accessToken}`
+              Authorization: `Bearer ${newTokens.accessToken}`,
             };
-            
+
             // Reintentar la solicitud
             continue;
           }
@@ -131,7 +201,7 @@ async function spotifyFetch(
     }
   }
 
-  throw new Error('Max retries reached');
+  throw new Error("Max retries reached");
 }
 
 // Función para obtener un token de acceso actualizado
@@ -155,67 +225,79 @@ export async function getAccessToken(session): Promise<string> {
   throw new Error("No hay tokens disponibles para obtener acceso");
 }
 
-// Resto de las funciones originales, usando spotifyFetch
-export function extractPlaylistId(url: string): string | null {
-  const patterns = [
-    /spotify:playlist:([a-zA-Z0-9]+)/,
-    /open\.spotify\.com\/playlist\/([a-zA-Z0-9]+)/,
-    /spotify\.com\/playlist\/([a-zA-Z0-9]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-
-  return null;
-}
-
 export async function getPlaylist(playlistId: string, accessToken: string) {
-  const response = await spotifyFetch(`https://api.spotify.com/v1/playlists/${playlistId}`, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
+  const response = await spotifyFetch(
+    `https://api.spotify.com/v1/playlists/${playlistId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     }
-  });
+  );
 
   return await response.json();
 }
 
-export async function getPlaylistTracks(playlistId: string, accessToken: string) {
+export async function getPlaylistTracks(
+  playlistId: string,
+  accessToken: string
+) {
+  const cacheKey = `tracks_${playlistId}`;
+  const cachedData = playlistCache.get(cacheKey);
+
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
+    console.log("chache:do");
+    return cachedData.data;
+  }
+
   let tracks: any[] = [];
   let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
 
   while (url) {
     const response = await spotifyFetch(url, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error fetching playlist tracks:", errorData);
+      throw new Error(
+        `Failed to fetch playlist tracks: ${
+          errorData.error.message || "Unknown error"
+        }`
+      );
+    }
 
     const data = await response.json();
     tracks = [...tracks, ...data.items];
     url = data.next;
   }
 
+  // Guardar en caché
+  playlistCache.set(cacheKey, {
+    data: tracks,
+    timestamp: Date.now(),
+  });
+
   return tracks;
 }
 
 export async function getArtistTopTracks(
-  artistId: string, 
-  accessToken: string, 
+  artistId: string,
+  accessToken: string,
   market: string = "ES"
 ) {
   const response = await spotifyFetch(
-    `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${market}`, 
+    `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${market}`,
     {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
     }
   );
 
@@ -223,81 +305,94 @@ export async function getArtistTopTracks(
   return data.tracks;
 }
 
-export async function processPlaylistData(playlistId: string, accessToken: string) {
-  // Obtener detalles de la playlist
-  const playlist = await getPlaylist(playlistId, accessToken);
+export async function processPlaylistData(playlistId: any, accessToken: any) {
+  // Verificar si ya existe la playlist en la base de datos
+  try {
+    // Primero intentamos obtener la playlist de la base de datos
+    const response = await fetch(`/api/playlists/spotify/${playlistId}`);
 
-  // Obtener todas las pistas
+    if (response.ok) {
+      console.log(
+        "Playlist encontrada en la base de datos, usando datos existentes"
+      );
+      const existingData = await response.json();
+      return existingData;
+    }
+  } catch (error) {
+    console.log(
+      "Error al verificar playlist en base de datos, continuando con importación:",
+      error
+    );
+  }
+
+  // Si no existe en la base de datos, obtener de Spotify con rate limiting
+  const playlistData = await getPlaylistData(playlistId, accessToken);
   const playlistTracks = await getPlaylistTracks(playlistId, accessToken);
 
-  // Agrupar pistas por artista
-  const artistsMap: Record<string, any> = {};
+  const artistsMap = {};
 
-  for (const item of playlistTracks) {
-    const track = item.track;
-    if (!track) continue;
+  playlistTracks.forEach((item: any) => {
+    if (!item.track) return; // Skip local tracks or tracks without data
 
-    const artist = track.artists[0];
+    const artist = item.track.artists[0]; // Use the first artist
+    if (!artist) return;
 
     if (!artistsMap[artist.id]) {
       artistsMap[artist.id] = {
         id: artist.id,
         name: artist.name,
-        image: artist.images?.[0]?.url || track.album?.images?.[0]?.url || "/placeholder.svg?height=100&width=100",
+        image: null, // Will be updated later
         tracks: [],
       };
     }
 
-    // Añadir la pista al artista (hasta 3 pistas por artista)
-    if (artistsMap[artist.id].tracks.length < 3 && track.preview_url) {
+    if (artistsMap[artist.id].tracks.length < 3) {
       artistsMap[artist.id].tracks.push({
-        id: track.id,
-        name: track.name,
-        previewUrl: track.preview_url,
-        albumName: track.album?.name,
-        albumImage: track.album?.images?.[0]?.url,
+        id: item.track.id,
+        name: item.track.name,
+        previewUrl: item.track.preview_url,
+        albumName: item.track.album.name,
+        albumImage: item.track.album.images[0]?.url,
       });
     }
-  }
+  });
 
-  // Para artistas con menos de 3 pistas, intentar obtener sus canciones principales
-  for (const artistId in artistsMap) {
-    const artist = artistsMap[artistId];
+  const artists = Object.values(artistsMap);
 
-    if (artist.tracks.length < 3) {
-      try {
-        const topTracks = await getArtistTopTracks(artistId, accessToken);
-
-        // Añadir canciones principales que tengan preview_url y no estén ya incluidas
-        for (const track of topTracks) {
-          if (artist.tracks.length >= 3) break;
-
-          const isAlreadyIncluded = artist.tracks.some((t: any) => t.id === track.id);
-
-          if (!isAlreadyIncluded && track.preview_url) {
-            artist.tracks.push({
-              id: track.id,
-              name: track.name,
-              previewUrl: track.preview_url,
-              albumName: track.album?.name,
-              albumImage: track.album?.images?.[0]?.url,
-            });
-          }
+  // Fetch artist images (only once per artist)
+  const artistIds = artists.map((artist) => artist.id).join(",");
+  if (artistIds) {
+    try {
+      const artistDetailsResponse = await spotifyFetch(
+        `https://api.spotify.com/v1/artists?ids=${artistIds}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
         }
-      } catch (error) {
-        console.error(`Error al obtener canciones principales para ${artist.name}:`, error);
+      );
+
+      if (artistDetailsResponse.ok) {
+        const artistDetailsData = await artistDetailsResponse.json();
+        artistDetailsData.artists.forEach((artistDetail) => {
+          const artist = artists.find((a) => a.id === artistDetail.id);
+          if (artist) {
+            artist.image = artistDetail.images[0]?.url || null;
+          }
+        });
+      } else {
+        console.warn("Failed to fetch artist details, using default images.");
       }
+    } catch (error) {
+      console.warn("Error fetching artist details:", error);
     }
   }
 
-  // Convertir el mapa a un array
-  const artists = Object.values(artistsMap);
-
   return {
-    id: playlist.id,
-    name: playlist.name,
-    description: playlist.description,
-    image: playlist.images?.[0]?.url,
+    id: playlistData.id,
+    name: playlistData.name,
+    description: playlistData.description,
+    image: playlistData.images[0]?.url || null,
     artists: artists,
   };
 }

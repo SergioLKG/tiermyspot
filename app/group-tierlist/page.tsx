@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Play, Pause, ChevronLeft, ChevronRight, Loader2, Users } from "lucide-react"
+import { Play, Pause, ChevronLeft, ChevronRight, Loader2, Users, AlertTriangle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 
@@ -21,17 +21,10 @@ const TIERS = [
   { id: "F", label: "F", value: 0, color: "bg-purple-100 dark:bg-purple-900 border-purple-200 dark:border-purple-800" },
 ]
 
-// Helper function to get tier by score
-const getTierByScore = (score) => {
-  // Map score to tier (0-5 to F-S)
-  const normalizedScore = Math.round(score)
-  return TIERS.find((tier) => tier.value === normalizedScore) || TIERS[0]
-}
-
 export default function GroupTierlistPage() {
   const { data: session, status } = useSession()
   const [groupRankings, setGroupRankings] = useState({})
-  const [userRankings, setUserRankings] = useState({})
+  const [userVotes, setUserVotes] = useState({})
   const [playingTrack, setPlayingTrack] = useState(null)
   const [audio, setAudio] = useState(null)
   const [artists, setArtists] = useState([])
@@ -39,9 +32,11 @@ export default function GroupTierlistPage() {
   const [playlistName, setPlaylistName] = useState("")
   const [playlistImage, setPlaylistImage] = useState("")
   const [playlistId, setPlaylistId] = useState("")
-  const [playlistStats, setPlaylistStats] = useState({ userCount: 0, users: [] })
-  const [users, setUsers] = useState([])
+  const [userCount, setUserCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -51,58 +46,67 @@ export default function GroupTierlistPage() {
   }, [status, router])
 
   useEffect(() => {
-    // Obtener el ID de la playlist activa
-    const activePlaylistId = localStorage.getItem("active_playlist")
+    const fetchData = async () => {
+      if (status !== "authenticated" || !session) return
 
-    if (activePlaylistId) {
-      // Cargar datos de la playlist activa
-      const playlistData = localStorage.getItem(`playlist_${activePlaylistId}`)
-      if (playlistData) {
-        const parsedData = JSON.parse(playlistData)
-        setArtists(parsedData.artists || [])
-        setPlaylistName(parsedData.name || "Festival Playlist")
-        if (parsedData.isPrivate && parsedData.privatePlaylistName) {
-          setPlaylistName(`${parsedData.name} (${parsedData.privatePlaylistName})`)
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Obtener ID de la playlist de los parámetros de búsqueda
+        const id = searchParams.get("id")
+
+        if (!id) {
+          // Si no hay ID en los parámetros, redirigir a dashboard
+          router.push("/dashboard")
+          return
         }
-        setPlaylistImage(parsedData.image || "")
-        setPlaylistId(activePlaylistId)
+
+        // Obtener datos de la tierlist grupal
+        const response = await fetch(`/api/group-tierlist/${id}`)
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Error al cargar la tierlist grupal")
+        }
+
+        const data = await response.json()
+
+        // Actualizar estado con los datos recibidos
+        setPlaylistId(data.playlist.id)
+        setPlaylistName(data.playlist.name)
+        if (data.playlist.isPrivate && data.playlist.privatePlaylistName) {
+          setPlaylistName(`${data.playlist.name} (${data.playlist.privatePlaylistName})`)
+        }
+        setPlaylistImage(data.playlist.image)
+        setArtists(data.playlist.artists)
 
         // Inicializar índices de pistas actuales
         const initialIndices = {}
-        parsedData.artists.forEach((artist) => {
+        data.playlist.artists.forEach((artist) => {
           initialIndices[artist.id] = 0
         })
         setCurrentTrackIndices(initialIndices)
 
-        // Cargar estadísticas de la playlist
-        const playlistStatsKey = `playlist_stats_${activePlaylistId}`
-        const playlistStats = JSON.parse(localStorage.getItem(playlistStatsKey) || '{"userCount": 0, "users": []}')
-        setPlaylistStats(playlistStats)
+        // Establecer rankings grupales
+        setGroupRankings(data.groupRankings.scores)
+        setUserVotes(data.groupRankings.votes)
 
-        // Recopilar usuarios que han creado rankings para esta playlist
-        const allUsers = []
-        // Buscar todas las claves en localStorage
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i)
-          if (key.startsWith(`rankings_`) && key.endsWith(`_${activePlaylistId}`)) {
-            const username = key.replace(`rankings_`, "").replace(`_${activePlaylistId}`, "")
-            // Añadir usuario a la lista
-            allUsers.push({
-              username,
-              displayName: username.split("@")[0],
-              avatar: `/placeholder.svg?height=40&width=40&text=${username.substring(0, 2).toUpperCase()}`,
-            })
-          }
-        }
-        setUsers(allUsers)
-
-        // Calcular rankings grupales
-        calculateGroupRankings(allUsers, activePlaylistId)
+        // Calcular número de usuarios únicos
+        const uniqueUserIds = new Set()
+        Object.values(data.groupRankings.votes).forEach((votes) => {
+          votes.forEach((vote) => uniqueUserIds.add(vote.userId))
+        })
+        setUserCount(uniqueUserIds.size)
+      } catch (err) {
+        console.error("Error al cargar datos:", err)
+        setError(err.message || "Error al cargar la tierlist grupal")
+      } finally {
+        setIsLoading(false)
       }
-    } else if (status === "authenticated") {
-      // Si no hay playlist activa pero hay sesión, redirigir a importar
-      router.push("/import-playlist")
     }
+
+    fetchData()
 
     // Limpiar audio al desmontar
     return () => {
@@ -111,60 +115,7 @@ export default function GroupTierlistPage() {
         audio.src = ""
       }
     }
-  }, [router, status])
-
-  // Actualizar la función calculateGroupRankings para usar el ID de playlist
-  const calculateGroupRankings = (usersList, playlistId) => {
-    const allRankings = {}
-    const userVotes = {}
-
-    // Para cada usuario
-    usersList.forEach((user) => {
-      const userRankings = localStorage.getItem(`rankings_${user.username}_${playlistId}`)
-      if (userRankings) {
-        const parsedRankings = JSON.parse(userRankings)
-
-        // Añadir la puntuación de cada artista al total
-        Object.entries(parsedRankings).forEach(([artistId, tierId]) => {
-          if (!allRankings[artistId]) {
-            allRankings[artistId] = {
-              totalScore: 0,
-              userCount: 0,
-            }
-            userVotes[artistId] = []
-          }
-
-          // Encontrar el valor del tier
-          const tier = TIERS.find((t) => t.id === tierId)
-          if (tier) {
-            allRankings[artistId].totalScore += tier.value
-            allRankings[artistId].userCount += 1
-
-            // Guardar qué usuario votó por qué tier
-            userVotes[artistId].push({
-              username: user.username,
-              displayName: user.displayName || user.username.split("@")[0],
-              avatar:
-                user.avatar ||
-                `/placeholder.svg?height=20&width=20&text=${(user.displayName || user.username).substring(0, 2).toUpperCase()}`,
-              tier: tierId,
-            })
-          }
-        })
-      }
-    })
-
-    // Calcular puntuaciones promedio y asignar tiers
-    const finalRankings = {}
-    Object.entries(allRankings).forEach(([artistId, data]) => {
-      const averageScore = data.userCount > 0 ? data.totalScore / data.userCount : 0
-      const tier = getTierByScore(averageScore)
-      finalRankings[artistId] = tier.id
-    })
-
-    setGroupRankings(finalRankings)
-    setUserRankings(userVotes)
-  }
+  }, [router, session, status, searchParams])
 
   const handlePlayTrack = (artist, trackIndex) => {
     const track = artist.tracks[trackIndex]
@@ -249,8 +200,8 @@ export default function GroupTierlistPage() {
     }
   }
 
-  // Mostrar pantalla de carga mientras se verifica la sesión
-  if (status === "loading") {
+  // Mostrar pantalla de carga mientras se verifica la sesión o se cargan los datos
+  if (status === "loading" || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
@@ -264,6 +215,33 @@ export default function GroupTierlistPage() {
   // Si no hay sesión, redirigir al login
   if (!session) {
     return null // La redirección se maneja en el useEffect
+  }
+
+  // Mostrar error si lo hay
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header activePage="group" />
+        <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+          <div className="max-w-md w-full">
+            <div className="bg-destructive/10 p-6 rounded-lg border border-destructive/20 flex flex-col items-center">
+              <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+              <h2 className="text-xl font-bold mb-2">Error al cargar la tierlist grupal</h2>
+              <p className="text-center mb-4">{error}</p>
+              <div className="flex gap-4">
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Intentar de nuevo
+                </Button>
+                <Link href="/dashboard">
+                  <Button>Volver al dashboard</Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   return (
@@ -287,8 +265,7 @@ export default function GroupTierlistPage() {
             <div className="flex items-center gap-2">
               <div className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium flex items-center">
                 <Users className="h-4 w-4 mr-1" />
-                {playlistStats.userCount} {playlistStats.userCount === 1 ? "persona ha" : "personas han"} calificado
-                esta playlist
+                {userCount} {userCount === 1 ? "persona ha" : "personas han"} calificado esta playlist
               </div>
               <Link href="/import-playlist">
                 <Button
@@ -311,7 +288,7 @@ export default function GroupTierlistPage() {
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {artists
-                      .filter((artist) => groupRankings[artist.id] === tier.id)
+                      .filter((artist) => groupRankings[artist.id]?.tier === tier.id)
                       .map((artist) => (
                         <Card key={artist.id} className="w-[160px] transition-all hover:shadow-md">
                           <CardContent className="p-3">
@@ -345,52 +322,35 @@ export default function GroupTierlistPage() {
 
                             {/* User votes display */}
                             <div className="flex flex-wrap gap-1 mb-1 justify-center">
-                              {userRankings[artist.id]?.length > 3 ? (
+                              {userVotes[artist.id]?.length > 3 ? (
                                 <div className="flex items-center">
                                   <div className="flex -space-x-2">
-                                    {userRankings[artist.id].slice(0, 3).map((vote, index) => (
+                                    {userVotes[artist.id].slice(0, 3).map((vote, index) => (
                                       <div
                                         key={index}
                                         className="relative"
-                                        title={`${vote.displayName || vote.username.split("@")[0]} votó: ${vote.tier}`}
+                                        title={`Usuario ${vote.userId} votó: ${vote.tier}`}
                                       >
-                                        <Image
-                                          src={
-                                            vote.avatar ||
-                                            `/placeholder.svg?height=20&width=20&text=${(vote.displayName || vote.username).substring(0, 2).toUpperCase()}`
-                                          }
-                                          alt={vote.displayName || vote.username.split("@")[0]}
-                                          width={20}
-                                          height={20}
-                                          className="rounded-full border-2 border-white"
-                                        />
+                                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[8px] text-primary-foreground border-2 border-white">
+                                          {vote.tier}
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
                                   <span className="ml-1 text-xs font-medium bg-primary/10 px-1.5 py-0.5 rounded-full">
-                                    +{userRankings[artist.id].length - 3}
+                                    +{userVotes[artist.id].length - 3}
                                   </span>
                                 </div>
                               ) : (
-                                userRankings[artist.id]?.map((vote, index) => (
+                                userVotes[artist.id]?.map((vote, index) => (
                                   <div
                                     key={index}
                                     className="relative"
-                                    title={`${vote.displayName || vote.username.split("@")[0]} votó: ${vote.tier}`}
+                                    title={`Usuario ${vote.userId} votó: ${vote.tier}`}
                                   >
-                                    <Image
-                                      src={
-                                        vote.avatar ||
-                                        `/placeholder.svg?height=20&width=20&text=${(vote.displayName || vote.username).substring(0, 2).toUpperCase()}`
-                                      }
-                                      alt={vote.displayName || vote.username.split("@")[0]}
-                                      width={20}
-                                      height={20}
-                                      className="rounded-full border-2 border-white"
-                                    />
-                                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[8px] w-3 h-3 rounded-full flex items-center justify-center">
+                                    <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[8px] text-primary-foreground border-2 border-white">
                                       {vote.tier}
-                                    </span>
+                                    </div>
                                   </div>
                                 ))
                               )}
@@ -454,7 +414,7 @@ export default function GroupTierlistPage() {
             <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
             <div className="flex flex-wrap gap-4">
               {artists
-                .filter((artist) => !groupRankings[artist.id])
+                .filter((artist) => !groupRankings[artist.id]?.tier)
                 .map((artist) => (
                   <Card key={artist.id} className="w-[160px] transition-all hover:shadow-md">
                     <CardContent className="p-3">
@@ -541,4 +501,3 @@ export default function GroupTierlistPage() {
     </div>
   )
 }
-
