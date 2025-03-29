@@ -383,7 +383,7 @@ export async function processPlaylistData(
     if (!item.track) return; // Skip local tracks or tracks without data
 
     const artist = item.track.artists[0]; // Use the first artist
-    const image = item.track.album.images[0].url; // Use the first artist
+    const image = item.track.album.images[0].url || null; // Use the first artist
     if (!artist) return;
 
     if (!artistsMap[artist.id]) {
@@ -391,7 +391,7 @@ export async function processPlaylistData(
         id: artist.id,
         spotifyId: artist.id,
         name: artist.name,
-        image: image.url || null,
+        image: image,
       };
     }
   });
