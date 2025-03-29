@@ -73,8 +73,15 @@ export const groupTierlists = pgTable("group_tierlists", {
   updatedAt: timestamp("updated_at").defaultNow(),
 })
 
+// Añadir esta definición de tabla
+export const playlistArtists = pgTable("playlist_artists", {
+  id: serial("id").primaryKey(),
+  playlistId: integer("playlist_id").notNull(),
+  artistId: integer("artist_id").notNull(),
+})
+
 // Función auxiliar para manejar la serialización de objetos
-function safeSerialize(obj:any):any {
+function safeSerialize(obj) {
   if (!obj) return obj
 
   // Si es un array, aplicar a cada elemento
@@ -195,7 +202,8 @@ export async function addUserToPlaylist(userId: number, playlistId: number) {
     .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
 
   if (existing.length === 0) {
-    const result = await db.insert(userPlaylists).values({ userId, playlistId }).returning()
+    // Si no existe, crear una nueva relación con isHidden = false (visible)
+    const result = await db.insert(userPlaylists).values({ userId, playlistId, isHidden: false }).returning()
     return safeSerialize(result[0])
   }
 
@@ -246,31 +254,41 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
   return safeSerialize(result)
 }
 
-// Reemplazar la función getPlaylistArtists existente con esta versión corregida
+// Reemplazar la función getPlaylistArtists
 export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection()
 
-  // Primero, necesitamos obtener los IDs de los artistas asociados a esta playlist
-  // Esto requiere una consulta más compleja que antes
-
-  // Obtener la playlist para verificar su ID de Spotify
-  const playlistData = await db.select().from(playlists).where(sql`${playlists.id} = ${playlistId}`)
-
-  if (playlistData.length === 0) {
-    return []
-  }
-
-  // Ahora, obtenemos todos los artistas
-  const artistsData = await db
+  // Obtener los artistas asociados a esta playlist específica
+  const result = await db
     .select({
       id: artists.id,
       spotifyId: artists.spotifyId,
       name: artists.name,
       image: artists.image,
     })
-    .from(artists)
+    .from(playlistArtists)
+    .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
+    .where(sql`${playlistArtists.playlistId} = ${playlistId}`)
 
-  return safeSerialize(artistsData)
+  return safeSerialize(result)
+}
+
+// Añadir función para asociar un artista a una playlist
+export async function addArtistToPlaylist(playlistId: number, artistId: number) {
+  const db = getDbConnection()
+
+  // Verificar si ya existe la relación
+  const existing = await db
+    .select()
+    .from(playlistArtists)
+    .where(sql`${playlistArtists.playlistId} = ${playlistId} AND ${playlistArtists.artistId} = ${artistId}`)
+
+  if (existing.length === 0) {
+    const result = await db.insert(playlistArtists).values({ playlistId, artistId }).returning()
+    return safeSerialize(result[0])
+  }
+
+  return safeSerialize(existing[0])
 }
 
 export async function getArtistBySpotifyId(spotifyId: string) {
@@ -598,4 +616,48 @@ export async function getTierlists(userId: number) {
   const result = await db.select().from(tierlists).where(sql`${tierlists.userId} = ${userId}`)
 
   return safeSerialize(result)
+}
+
+export async function getPlaylistRankings(playlistId: number) {
+  const db = getDbConnection()
+  const result = await db
+    .select({
+      userId: tierlists.userId,
+      artistId: sql<number>`CAST(jsonb_object_keys(tierlists.ratings) AS INTEGER)`,
+      tierId: sql<string>`(tierlists.ratings ->> jsonb_object_keys(tierlists.ratings))`,
+    })
+    .from(tierlists)
+    .where(sql`${tierlists.playlistId} = ${playlistId} AND tierlists.ratings IS NOT NULL`)
+    .execute()
+
+  // Transformar el resultado para que coincida con la estructura esperada
+  const rankings = result.flatMap((tierlist) => {
+    return Object.keys(tierlist).map((artistId) => ({
+      userId: tierlist.userId,
+      artistId: Number.parseInt(artistId),
+      tierId: tierlist[artistId],
+    }))
+  })
+
+  return safeSerialize(result)
+}
+
+export async function getPlaylistUserCount(playlistId: number): Promise<number> {
+  try {
+    const db = getDbConnection()
+    const result = await db
+      .select({ count: sql<number>`count(DISTINCT ${userPlaylists.userId})`.as("count") })
+      .from(userPlaylists)
+      .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
+      .execute()
+
+    if (result && result.length > 0 && result[0].count !== null) {
+      return result[0].count
+    } else {
+      return 0
+    }
+  } catch (error) {
+    console.error("Error al obtener el conteo de usuarios de la playlist:", error)
+    return 0
+  }
 }

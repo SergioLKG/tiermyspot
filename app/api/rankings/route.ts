@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    // Usar updateTierlistRating en lugar de setUserRanking/deleteUserRanking
+    // Usar updateTierlistRating para actualizar la tierlist del usuario
     await updateTierlistRating(user.id, Number.parseInt(playlistId), Number.parseInt(artistId), tierId, privateName)
 
     return NextResponse.json({ success: true })

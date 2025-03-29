@@ -26,10 +26,10 @@ const TIERS = [
 
 export default function TierlistPage() {
   const { data: session, status } = useSession()
-  const [artists, setArtists] = usePersistentState("tierlist-artists", [])
-  const [rankings, setRankings] = usePersistentState("tierlist-rankings", {})
-  const [playlistName, setPlaylistName] = usePersistentState("tierlist-playlist-name", "")
-  const [playlistImage, setPlaylistImage] = usePersistentState("tierlist-playlist-image", "")
+  const [artists, setArtists] = useState([])
+  const [rankings, setRankings] = useState({})
+  const [playlistName, setPlaylistName] = useState("")
+  const [playlistImage, setPlaylistImage] = useState("")
   const [playlistId, setPlaylistId] = usePersistentState("tierlist-playlist-id", "")
   const [playingTrack, setPlayingTrack] = useState(null)
   const [audio, setAudio] = useState(null)
@@ -50,6 +50,8 @@ export default function TierlistPage() {
   }, [status, internalRouter])
 
   useEffect(() => {
+    let persistedArtists, persistedRankings, persistedPlaylistName, persistedPlaylistImage
+
     const fetchData = async () => {
       if (status !== "authenticated" || !session) return
 
@@ -66,25 +68,27 @@ export default function TierlistPage() {
           return
         }
 
-        const playlistId = selectedPlaylist.id
+        const playlistIdValue = selectedPlaylist.id
+        setPlaylistId(playlistIdValue)
 
         // Mostrar mensaje de carga específico
         setLoadingMessage("Cargando datos de la playlist...")
 
         // Obtener datos de la playlist
-        const playlistData = await cachedFetch(`/api/playlists/${playlistId}`)
+        const playlistData = await cachedFetch(`/api/playlists/${playlistIdValue}`)
 
         if (!playlistData) {
           throw new Error("Error al cargar la playlist")
         }
 
-        setPlaylistId(playlistData.id)
-        setPlaylistName(playlistData.name)
-        if (playlistData.isPrivate && playlistData.privatePlaylistName) {
-          setPlaylistName(`${playlistData.name} (${playlistData.privatePlaylistName})`)
-        }
+        // Actualizar datos de la playlist
+        setPlaylistName(
+          selectedPlaylist.isPrivate && selectedPlaylist.privatePlaylistName
+            ? `${playlistData.name} (${selectedPlaylist.privatePlaylistName})`
+            : playlistData.name,
+        )
         setPlaylistImage(playlistData.image)
-        setArtists(playlistData.artists)
+        setArtists(playlistData.artists || [])
 
         // Inicializar índices de pistas actuales
         const initialIndices = {}
@@ -96,11 +100,14 @@ export default function TierlistPage() {
         // Obtener tierlist del usuario
         setLoadingMessage("Cargando tus rankings...")
         const tierlistData = await cachedFetch(
-          `/api/tierlists?playlistId=${playlistId}&privateName=${selectedPlaylist.privatePlaylistName || ""}`,
+          `/api/tierlists?playlistId=${playlistIdValue}&privateName=${selectedPlaylist.privatePlaylistName || ""}`,
         )
 
         if (tierlistData) {
           setRankings(tierlistData.ratings || {})
+        } else {
+          // Si no hay tierlist, inicializar con un objeto vacío
+          setRankings({})
         }
       } catch (error) {
         console.error("Error al cargar datos:", error)
@@ -122,10 +129,10 @@ export default function TierlistPage() {
     }
   }, [router, session, status])
 
-  const handleRankArtist = async (artistId:any, tierId:any) => {
+  const handleRankArtist = async (artistId, tierId) => {
     try {
       // Si el artista ya está clasificado con este tier, quitarlo
-      const newRankings:any = { ...rankings }
+      const newRankings = { ...rankings }
 
       if (rankings[artistId] === tierId) {
         delete newRankings[artistId]
@@ -168,7 +175,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handlePlayTrack = (artist:any, trackIndex:any) => {
+  const handlePlayTrack = (artist, trackIndex) => {
     const track = artist.tracks[trackIndex]
     if (!track || !track.previewUrl) {
       console.error("No hay URL de previsualización disponible para esta pista")
@@ -215,7 +222,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handleNextTrack = (artistId:any) => {
+  const handleNextTrack = (artistId) => {
     const artist = artists.find((a) => a.id === artistId)
     if (!artist) return
 
@@ -233,7 +240,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handlePrevTrack = (artistId:any) => {
+  const handlePrevTrack = (artistId) => {
     const artist = artists.find((a) => a.id === artistId)
     if (!artist) return
 
@@ -306,8 +313,8 @@ export default function TierlistPage() {
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {artists
-                      .filter((artist:any) => rankings[artist.id] === tier.id)
-                      .map((artist:any) => (
+                      .filter((artist) => rankings[artist.id] === tier.id)
+                      .map((artist) => (
                         <ArtistCard
                           key={artist.id}
                           artist={artist}
@@ -349,8 +356,8 @@ export default function TierlistPage() {
             <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
             <div className="flex flex-wrap gap-4">
               {artists
-                .filter((artist:any) => !rankings[artist.id])
-                .map((artist:any) => (
+                .filter((artist) => !rankings[artist.id])
+                .map((artist) => (
                   <ArtistCard
                     key={artist.id}
                     artist={artist}

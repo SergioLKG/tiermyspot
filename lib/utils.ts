@@ -31,6 +31,15 @@ export function setSelectedPlaylist(playlistData: {
   isPrivate?: boolean
   privatePlaylistName?: string
 }) {
+  // Limpiar cualquier caché relacionada con tierlists
+  if (typeof window !== "undefined") {
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith("tierlist-")) {
+        sessionStorage.removeItem(key)
+      }
+    })
+  }
+
   Cookies.set(SELECTED_PLAYLIST_COOKIE, JSON.stringify(playlistData), { expires: 30 }) // Expira en 30 días
 }
 
