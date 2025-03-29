@@ -310,25 +310,6 @@ console.log(url);
   return tracks;
 }
 
-export async function getArtistTopTracks(
-  artistId: string,
-  accessToken: string,
-  market: string = "ES"
-) {
-  const response = await spotifyFetch(
-    `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${market}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  const data = await response.json();
-  return data.tracks;
-}
-
 export async function processPlaylistData(
   playlistId: any,
   accessToken: any,
@@ -395,7 +376,7 @@ export async function processPlaylistData(
   const playlistTracks = await getPlaylistTracks(playlistId, accessToken);
 
   const artistsMap: any = {};
-
+  console.log("playlistTracks", playlistTracks);
   playlistTracks.forEach((item: any) => {
     if (!item.track) return; // Skip local tracks or tracks without data
 
