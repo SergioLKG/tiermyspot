@@ -276,7 +276,7 @@ export async function getPlaylistTracks(
   }
 
   let tracks: any[] = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&limit=50&fields=items(track(id,name,images(url),artists(id,name,href))),next`;
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&limit=50&fields=items(track(id,name,images,artists(id,name,href))),next`;
 console.log(url);
   while (url) {
     const response = await spotifyFetch(url, {
@@ -315,7 +315,6 @@ export async function processPlaylistData(
   accessToken: any,
   market: string = "ES"
 ) {
-  console.log("entra a procesar");
   // Verificar si ya existe la playlist en la base de datos
   try {
     // Primero intentamos obtener la playlist de la base de datos
@@ -338,7 +337,6 @@ export async function processPlaylistData(
       );
 
       clearTimeout(timeoutId);
-      console.log("response", response);
 
       if (response.ok) {
         const existsData = await response.json();
@@ -377,7 +375,6 @@ export async function processPlaylistData(
   // Si no existe en la base de datos, obtener de Spotify con rate limiting
   const playlistData = await getPlaylistData(playlistId, accessToken);
   const playlistTracks = await getPlaylistTracks(playlistId, accessToken);
-  console.log("entra a procesar" , playlistData);
 
   const artistsMap: any = {};
   console.log("playlistTracks", playlistTracks);
@@ -387,7 +384,6 @@ export async function processPlaylistData(
     if (!item.track) return; // Skip local tracks or tracks without data
 
     const artist = item.track.artists[0]; // Use the first artist
-    const image = item.track.images[0].url; // Use the first image
     if (!artist) return;
 
     if (!artistsMap[artist.id]) {
@@ -395,7 +391,6 @@ export async function processPlaylistData(
         id: artist.id,
         spotifyId: artist.id,
         name: artist.name,
-        image: image,
       };
     }
   });
