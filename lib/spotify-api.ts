@@ -315,6 +315,7 @@ export async function processPlaylistData(
   accessToken: any,
   market: string = "ES"
 ) {
+  console.log("entra a procesar");
   // Verificar si ya existe la playlist en la base de datos
   try {
     // Primero intentamos obtener la playlist de la base de datos
@@ -374,10 +375,13 @@ export async function processPlaylistData(
   // Si no existe en la base de datos, obtener de Spotify con rate limiting
   const playlistData = await getPlaylistData(playlistId, accessToken);
   const playlistTracks = await getPlaylistTracks(playlistId, accessToken);
+  console.log("entra a procesar" , playlistData);
 
   const artistsMap: any = {};
   console.log("playlistTracks", playlistTracks);
   playlistTracks.forEach((item: any) => {
+  console.log("item", item);
+
     if (!item.track) return; // Skip local tracks or tracks without data
 
     const artist = item.track.artists[0]; // Use the first artist
