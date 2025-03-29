@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [confirmDialog, setConfirmDialog] = useState({ open: false, playlistId: null, playlistName: "" })
   const router = useRouter()
+  const [selectedPlaylist, setSelectedPlaylist] = useState(null)
 
   useEffect(() => {
     // Check if user is logged in
@@ -61,8 +62,18 @@ export default function Dashboard() {
   }, [router, session, status])
 
   // Función para activar una playlist
-  const activatePlaylist = (playlistId) => {
-    router.push(`/tierlist?id=${playlistId}`)
+  const activatePlaylist = (playlist) => {
+    // Guardar la playlist seleccionada en una cookie
+    setSelectedPlaylist({
+      id: playlist.id,
+      name: playlist.name,
+      image: playlist.image,
+      isPrivate: playlist.isPrivate,
+      privatePlaylistName: playlist.privatePlaylistName,
+    })
+
+    // Redirigir a la página de tierlist
+    router.push(`/tierlist`)
   }
 
   // Función para ocultar una playlist
@@ -84,7 +95,6 @@ export default function Dashboard() {
       }
 
       // Actualizar la lista de playlists
-      
       setPublicPlaylists(publicPlaylists.filter((playlist) => playlist.id !== playlistId))
       setPrivatePlaylists(privatePlaylists.filter((playlist) => playlist.id !== playlistId))
 
@@ -199,7 +209,7 @@ export default function Dashboard() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">Playlist pública</div>
-                        <Button size="sm" onClick={() => activatePlaylist(playlist.id)}>
+                        <Button size="sm" onClick={() => activatePlaylist(playlist)}>
                           Seleccionar
                         </Button>
                       </div>
@@ -259,7 +269,7 @@ export default function Dashboard() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">Playlist privada</div>
-                        <Button size="sm" onClick={() => activatePlaylist(playlist.id)}>
+                        <Button size="sm" onClick={() => activatePlaylist(playlist)}>
                           Seleccionar
                         </Button>
                       </div>
@@ -331,4 +341,3 @@ export default function Dashboard() {
     </div>
   )
 }
-

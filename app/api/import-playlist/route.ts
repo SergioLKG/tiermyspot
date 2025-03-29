@@ -6,11 +6,9 @@ import {
   getOrCreatePlaylist,
   getOrCreateArtist,
   getOrCreateTrack,
-  addArtistToPlaylist,
   addUserToPlaylist,
   getUserByEmail,
-  getPlaylistBySpotifyId,
-  getPlaylistArtists,
+  getOrCreateTierlist,
 } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
@@ -34,82 +32,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    // Verificar si la playlist ya existe (para playlists públicas)
-    let playlist = null
-    let isNewPlaylist = false
-
-    if (!isPrivate) {
-      playlist = await getPlaylistBySpotifyId(playlistId)
-
-      if (playlist) {
-        console.log("Playlist pública ya existe, asociando al usuario")
-        // Si la playlist ya existe, solo asociarla al usuario
-        await addUserToPlaylist(user.id, playlist.id)
-
-        return NextResponse.json({
-          success: true,
-          playlistId: playlist.id,
-          spotifyId: playlist.spotifyId,
-          isNew: false,
-        })
-      }
-    }
-
-    // Para playlists privadas o si la pública no existe, obtener datos de Spotify
+    // Obtener datos de Spotify
     console.log("Obteniendo datos de playlist desde Spotify")
     const playlistData = await processPlaylistData(playlistId, session.accessToken)
 
-    // Crear o actualizar playlist
-    playlist = await getOrCreatePlaylist({
+    // Crear o actualizar playlist base (siempre pública)
+    const playlist = await getOrCreatePlaylist({
       spotifyId: playlistData.id,
       name: playlistData.name,
       description: playlistData.description,
       image: playlistData.image,
-      isPrivate: isPrivate || false,
-      privatePlaylistName: privatePlaylistName,
     })
 
     // Asociar usuario con playlist
     await addUserToPlaylist(user.id, playlist.id)
 
-    // Si es una playlist privada o es nueva, guardar artistas y pistas
-    if (isPrivate || !(await getPlaylistArtists(playlist.id).length)) {
-      isNewPlaylist = true
-      console.log("Guardando artistas y pistas")
+    // Guardar artistas y pistas si es necesario
+    for (const artistData of playlistData.artists) {
+      const artist = await getOrCreateArtist({
+        spotifyId: artistData.id,
+        name: artistData.name,
+        image: artistData.image,
+      })
 
-      // Guardar artistas y pistas
-      for (const artistData of playlistData.artists) {
-        const artist = await getOrCreateArtist({
-          spotifyId: artistData.id,
-          name: artistData.name,
-          image: artistData.image,
+      // Guardar pistas del artista
+      for (const trackData of artistData.tracks) {
+        await getOrCreateTrack({
+          spotifyId: trackData.id,
+          name: trackData.name,
+          previewUrl: trackData.previewUrl,
+          albumName: trackData.albumName,
+          albumImage: trackData.albumImage,
+          artistId: artist.id,
         })
-
-        // Asociar artista con playlist
-        await addArtistToPlaylist(playlist.id, artist.id)
-
-        // Guardar pistas del artista
-        for (const trackData of artistData.tracks) {
-          await getOrCreateTrack({
-            spotifyId: trackData.id,
-            name: trackData.name,
-            previewUrl: trackData.previewUrl,
-            albumName: trackData.albumName,
-            albumImage: trackData.albumImage,
-            artistId: artist.id,
-          })
-        }
       }
     }
+
+    // Crear tierlist para el usuario (pública o privada)
+    const tierlist = await getOrCreateTierlist({
+      userId: user.id,
+      playlistId: playlist.id,
+      isPrivate: isPrivate || false,
+      privateName: isPrivate ? privatePlaylistName : undefined,
+    })
 
     return NextResponse.json({
       success: true,
       playlistId: playlist.id,
       spotifyId: playlist.spotifyId,
-      isNew: isNewPlaylist,
+      tierlistId: tierlist.id,
+      isPrivate: isPrivate || false,
+      privatePlaylistName: privatePlaylistName,
     })
   } catch (error) {
     console.error("Error al importar playlist:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+

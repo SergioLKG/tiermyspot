@@ -1,10 +1,9 @@
 import { neon } from "@neondatabase/serverless"
 import { drizzle } from "drizzle-orm/neon-http"
-import { pgTable, serial, text, timestamp, boolean, integer } from "drizzle-orm/pg-core"
+import { pgTable, serial, text, timestamp, boolean, integer, jsonb } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 // Función para obtener la conexión a la base de datos
-// Esta función solo debe llamarse desde el servidor
 export function getDbConnection() {
   const connectionString = process.env.POSTGRES_DATABASE_URL || process.env.DATABASE_URL
 
@@ -17,9 +16,6 @@ export function getDbConnection() {
   const neonClient = neon(connectionString)
   return drizzle(neonClient)
 }
-
-// No inicializar la conexión aquí, solo cuando se necesite
-// Esto evita errores en el cliente
 
 // Definición de tablas
 export const users = pgTable("users", {
@@ -37,9 +33,8 @@ export const playlists = pgTable("playlists", {
   name: text("name").notNull(),
   description: text("description"),
   image: text("image"),
-  isPrivate: boolean("is_private").default(false),
-  privatePlaylistName: text("private_playlist_name"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 })
 
 export const userPlaylists = pgTable("user_playlists", {
@@ -57,12 +52,6 @@ export const artists = pgTable("artists", {
   image: text("image"),
 })
 
-export const playlistArtists = pgTable("playlist_artists", {
-  id: serial("id").primaryKey(),
-  playlistId: integer("playlist_id").notNull(),
-  artistId: integer("artist_id").notNull(),
-})
-
 export const tracks = pgTable("tracks", {
   id: serial("id").primaryKey(),
   spotifyId: text("spotify_id").notNull().unique(),
@@ -73,12 +62,23 @@ export const tracks = pgTable("tracks", {
   artistId: integer("artist_id").notNull(),
 })
 
-export const rankings = pgTable("rankings", {
+export const tierlists = pgTable("tierlists", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   playlistId: integer("playlist_id").notNull(),
-  artistId: integer("artist_id").notNull(),
-  tierId: text("tier_id").notNull(),
+  isPrivate: boolean("is_private").default(false),
+  privateName: text("private_name"),
+  ratings: jsonb("ratings").default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+})
+
+export const groupTierlists = pgTable("group_tierlists", {
+  id: serial("id").primaryKey(),
+  playlistId: integer("playlist_id").notNull(),
+  privateName: text("private_name"),
+  aggregatedRatings: jsonb("aggregated_ratings").default({}),
+  userCount: integer("user_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 })
@@ -111,7 +111,6 @@ function safeSerialize(obj) {
 export async function getUserByEmail(email: string) {
   try {
     const db = getDbConnection()
-    // Usar sql`` directamente
     const result = await db.select().from(users).where(sql`${users.email} = ${email}`)
     return safeSerialize(result[0])
   } catch (error) {
@@ -176,8 +175,6 @@ export async function createPlaylist(playlistData: {
   name: string
   description?: string
   image?: string
-  isPrivate?: boolean
-  privatePlaylistName?: string
 }) {
   const db = getDbConnection()
   const result = await db.insert(playlists).values(playlistData).returning()
@@ -189,8 +186,6 @@ export async function getOrCreatePlaylist(playlistData: {
   name: string
   description?: string
   image?: string
-  isPrivate?: boolean
-  privatePlaylistName?: string
 }) {
   let playlist = await getPlaylistBySpotifyId(playlistData.spotifyId)
 
@@ -246,8 +241,6 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
       name: playlists.name,
       description: playlists.description,
       image: playlists.image,
-      isPrivate: playlists.isPrivate,
-      privatePlaylistName: playlists.privatePlaylistName,
       isHidden: userPlaylists.isHidden,
       createdAt: playlists.createdAt,
     })
@@ -283,22 +276,6 @@ export async function getOrCreateArtist(artistData: { spotifyId: string; name: s
   }
 
   return artist
-}
-
-export async function addArtistToPlaylist(playlistId: number, artistId: number) {
-  const db = getDbConnection()
-  // Verificar si ya existe la relación
-  const existing = await db
-    .select()
-    .from(playlistArtists)
-    .where(sql`${playlistArtists.playlistId} = ${playlistId} AND ${playlistArtists.artistId} = ${artistId}`)
-
-  if (existing.length === 0) {
-    const result = await db.insert(playlistArtists).values({ playlistId, artistId }).returning()
-    return safeSerialize(result[0])
-  }
-
-  return safeSerialize(existing[0])
 }
 
 export async function getTrackBySpotifyId(spotifyId: string) {
@@ -343,94 +320,264 @@ export async function getArtistTracks(artistId: number) {
   return safeSerialize(result)
 }
 
-export async function getPlaylistArtists(playlistId: number) {
+// Nuevas funciones para el sistema de tierlists
+
+export async function getTierlist(userId: number, playlistId: number, privateName?: string) {
+  const db = getDbConnection()
+  let query = db
+    .select()
+    .from(tierlists)
+    .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.playlistId} = ${playlistId}`)
+
+  if (privateName) {
+    query = query.where(sql`${tierlists.privateName} = ${privateName}`)
+  } else {
+    query = query.where(sql`${tierlists.privateName} IS NULL`)
+  }
+
+  const result = await query
+  return safeSerialize(result[0])
+}
+
+export async function createTierlist(tierlistData: {
+  userId: number
+  playlistId: number
+  isPrivate?: boolean
+  privateName?: string
+}) {
+  const db = getDbConnection()
+  const result = await db.insert(tierlists).values(tierlistData).returning()
+  return safeSerialize(result[0])
+}
+
+export async function getOrCreateTierlist(tierlistData: {
+  userId: number
+  playlistId: number
+  isPrivate?: boolean
+  privateName?: string
+}) {
+  let tierlist = await getTierlist(tierlistData.userId, tierlistData.playlistId, tierlistData.privateName)
+
+  if (!tierlist) {
+    tierlist = await createTierlist(tierlistData)
+  }
+
+  return tierlist
+}
+
+export async function updateTierlistRating(
+  userId: number,
+  playlistId: number,
+  artistId: number,
+  tierId: string | null,
+  privateName?: string,
+) {
+  const db = getDbConnection()
+
+  // Obtener o crear la tierlist
+  const tierlist = await getOrCreateTierlist({
+    userId,
+    playlistId,
+    isPrivate: !!privateName,
+    privateName,
+  })
+
+  // Actualizar los ratings
+  const ratings = tierlist.ratings || {}
+
+  if (tierId === null) {
+    // Eliminar el rating
+    delete ratings[artistId]
+  } else {
+    // Actualizar o añadir el rating
+    ratings[artistId] = tierId
+  }
+
+  // Guardar los cambios
+  const result = await db
+    .update(tierlists)
+    .set({
+      ratings: ratings,
+      updatedAt: new Date(),
+    })
+    .where(sql`${tierlists.id} = ${tierlist.id}`)
+    .returning()
+
+  // Actualizar la tierlist grupal
+  await updateGroupTierlist(playlistId, privateName)
+
+  return safeSerialize(result[0])
+}
+
+export async function getGroupTierlist(playlistId: number, privateName?: string) {
+  const db = getDbConnection()
+  let query = db.select().from(groupTierlists).where(sql`${groupTierlists.playlistId} = ${playlistId}`)
+
+  if (privateName) {
+    query = query.where(sql`${groupTierlists.privateName} = ${privateName}`)
+  } else {
+    query = query.where(sql`${groupTierlists.privateName} IS NULL`)
+  }
+
+  const result = await query
+  return safeSerialize(result[0])
+}
+
+export async function createGroupTierlist(groupTierlistData: {
+  playlistId: number
+  privateName?: string
+}) {
+  const db = getDbConnection()
+  const result = await db.insert(groupTierlists).values(groupTierlistData).returning()
+  return safeSerialize(result[0])
+}
+
+export async function getOrCreateGroupTierlist(groupTierlistData: {
+  playlistId: number
+  privateName?: string
+}) {
+  let groupTierlist = await getGroupTierlist(groupTierlistData.playlistId, groupTierlistData.privateName)
+
+  if (!groupTierlist) {
+    groupTierlist = await createGroupTierlist(groupTierlistData)
+  }
+
+  return groupTierlist
+}
+
+export async function updateGroupTierlist(playlistId: number, privateName?: string) {
+  const db = getDbConnection()
+
+  // Obtener todas las tierlists para esta playlist
+  let query = db.select().from(tierlists).where(sql`${tierlists.playlistId} = ${playlistId}`)
+
+  if (privateName) {
+    query = query.where(sql`${tierlists.privateName} = ${privateName}`)
+  } else {
+    query = query.where(sql`${tierlists.privateName} IS NULL`)
+  }
+
+  const userTierlists = await query
+
+  // Calcular los ratings agregados
+  const aggregatedRatings = {}
+  const uniqueUserIds = new Set()
+
+  userTierlists.forEach((tierlist) => {
+    uniqueUserIds.add(tierlist.userId)
+
+    // Procesar los ratings de esta tierlist
+    Object.entries(tierlist.ratings || {}).forEach(([artistId, tierId]) => {
+      if (!aggregatedRatings[artistId]) {
+        aggregatedRatings[artistId] = {
+          S: 0,
+          A: 0,
+          B: 0,
+          C: 0,
+          D: 0,
+          F: 0,
+          totalScore: 0,
+          userCount: 0,
+          averageScore: 0,
+          tier: null,
+        }
+      }
+
+      // Incrementar el contador para este tier
+      aggregatedRatings[artistId][tierId]++
+
+      // Actualizar estadísticas
+      aggregatedRatings[artistId].userCount++
+
+      // Convertir tierId a valor numérico
+      let score = 0
+      switch (tierId) {
+        case "S":
+          score = 5
+          break
+        case "A":
+          score = 4
+          break
+        case "B":
+          score = 3
+          break
+        case "C":
+          score = 2
+          break
+        case "D":
+          score = 1
+          break
+        case "F":
+          score = 0
+          break
+      }
+
+      aggregatedRatings[artistId].totalScore += score
+    })
+  })
+
+  // Calcular promedios y asignar tiers
+  Object.values(aggregatedRatings).forEach((artistRating: any) => {
+    if (artistRating.userCount > 0) {
+      artistRating.averageScore = artistRating.totalScore / artistRating.userCount
+
+      // Asignar tier basado en promedio
+      if (artistRating.averageScore >= 4.5) artistRating.tier = "S"
+      else if (artistRating.averageScore >= 3.5) artistRating.tier = "A"
+      else if (artistRating.averageScore >= 2.5) artistRating.tier = "B"
+      else if (artistRating.averageScore >= 1.5) artistRating.tier = "C"
+      else if (artistRating.averageScore >= 0.5) artistRating.tier = "D"
+      else artistRating.tier = "F"
+    }
+  })
+
+  // Obtener o crear la tierlist grupal
+  const groupTierlist = await getOrCreateGroupTierlist({
+    playlistId,
+    privateName,
+  })
+
+  // Actualizar la tierlist grupal
+  const result = await db
+    .update(groupTierlists)
+    .set({
+      aggregatedRatings,
+      userCount: uniqueUserIds.size,
+      updatedAt: new Date(),
+    })
+    .where(sql`${groupTierlists.id} = ${groupTierlist.id}`)
+    .returning()
+
+  return safeSerialize(result[0])
+}
+
+export async function getUserTierlistsForPlaylist(userId: number, playlistId: number) {
   const db = getDbConnection()
   const result = await db
+    .select()
+    .from(tierlists)
+    .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.playlistId} = ${playlistId}`)
+
+  return safeSerialize(result)
+}
+
+export async function getPlaylistArtists(playlistId: number) {
+  // Esta función ahora debe obtener los artistas asociados a una playlist
+  // a través de las pistas que tienen los artistas
+  const db = getDbConnection()
+
+  // Obtener todos los artistas que tienen pistas
+  const artistsWithTracks = await db
     .select({
       id: artists.id,
       spotifyId: artists.spotifyId,
       name: artists.name,
       image: artists.image,
     })
-    .from(playlistArtists)
-    .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
-    .where(sql`${playlistArtists.playlistId} = ${playlistId}`)
+    .from(artists)
+    .where(sql`EXISTS (SELECT 1 FROM tracks WHERE tracks.artist_id = ${artists.id})`)
 
-  return safeSerialize(result)
-}
-
-export async function getUserRanking(userId: number, playlistId: number, artistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .select()
-    .from(rankings)
-    .where(
-      sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
-    )
-  return safeSerialize(result[0])
-}
-
-export async function setUserRanking(userId: number, playlistId: number, artistId: number, tierId: string) {
-  const existing = await getUserRanking(userId, playlistId, artistId)
-  const db = getDbConnection()
-
-  if (existing) {
-    const result = await db
-      .update(rankings)
-      .set({ tierId, updatedAt: new Date() })
-      .where(sql`${rankings.id} = ${existing.id}`)
-      .returning()
-    return safeSerialize(result[0])
-  } else {
-    const result = await db.insert(rankings).values({ userId, playlistId, artistId, tierId }).returning()
-    return safeSerialize(result[0])
-  }
-}
-
-export async function deleteUserRanking(userId: number, playlistId: number, artistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .delete(rankings)
-    .where(
-      sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId} AND ${rankings.artistId} = ${artistId}`,
-    )
-  return safeSerialize(result)
-}
-
-export async function getUserRankings(userId: number, playlistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .select({
-      artistId: rankings.artistId,
-      tierId: rankings.tierId,
-    })
-    .from(rankings)
-    .where(sql`${rankings.userId} = ${userId} AND ${rankings.playlistId} = ${playlistId}`)
-
-  return safeSerialize(result)
-}
-
-export async function getPlaylistRankings(playlistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .select({
-      userId: rankings.userId,
-      artistId: rankings.artistId,
-      tierId: rankings.tierId,
-    })
-    .from(rankings)
-    .where(sql`${rankings.playlistId} = ${playlistId}`)
-
-  return safeSerialize(result)
-}
-
-export async function getPlaylistUserCount(playlistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .select({ count: sql<number>`count(distinct ${rankings.userId})` })
-    .from(rankings)
-    .where(sql`${rankings.playlistId} = ${playlistId}`)
-  return result[0]?.count || 0
+  return safeSerialize(artistsWithTracks)
 }
 
 export async function getFullPlaylistData(playlistId: number) {
@@ -460,7 +607,6 @@ export async function getFullPlaylistData(playlistId: number) {
   }
 }
 
-// Añadir esta función a lib/db.ts
 export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
   try {
     const db = getDbConnection()
@@ -473,22 +619,13 @@ export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
     const playlist = playlistData[0]
 
     // Obtener artistas de la playlist
-    const artistsData = await db
-      .select({
-        id: artists.id,
-        spotifyId: artists.spotifyId,
-        name: artists.name,
-        image: artists.image,
-      })
-      .from(playlistArtists)
-      .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
-      .where(sql`${playlistArtists.playlistId} = ${playlist.id}`)
+    const artistsData = await getPlaylistArtists(playlist.id)
 
     const artistsWithTracks = []
 
     // Obtener pistas para cada artista
     for (const artist of artistsData) {
-      const tracksData = await db.select().from(tracks).where(sql`${tracks.artistId} = ${artist.id}`)
+      const tracksData = await getArtistTracks(artist.id)
 
       artistsWithTracks.push({
         ...artist,
@@ -505,4 +642,3 @@ export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
     throw error
   }
 }
-

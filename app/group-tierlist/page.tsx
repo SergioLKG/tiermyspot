@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Play, Pause, ChevronLeft, ChevronRight, Loader2, Users, AlertTriangle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
+import { getSelectedPlaylist } from "@/lib/utils"
 
 // Default tiers
 const TIERS = [
@@ -53,17 +54,20 @@ export default function GroupTierlistPage() {
         setIsLoading(true)
         setError(null)
 
-        // Obtener ID de la playlist de los parámetros de búsqueda
-        const id = searchParams.get("id")
+        // Obtener la playlist seleccionada de la cookie
+        const selectedPlaylist = getSelectedPlaylist()
 
-        if (!id) {
-          // Si no hay ID en los parámetros, redirigir a dashboard
+        // Si no hay playlist seleccionada, redirigir al dashboard
+        if (!selectedPlaylist) {
           router.push("/dashboard")
           return
         }
 
+        const playlistId = selectedPlaylist.id
+        const privateName = selectedPlaylist.privatePlaylistName || ""
+
         // Obtener datos de la tierlist grupal
-        const response = await fetch(`/api/group-tierlist/${id}`)
+        const response = await fetch(`/api/group-tierlists?playlistId=${playlistId}&privateName=${privateName}`)
 
         if (!response.ok) {
           const errorData = await response.json()
@@ -75,8 +79,8 @@ export default function GroupTierlistPage() {
         // Actualizar estado con los datos recibidos
         setPlaylistId(data.playlist.id)
         setPlaylistName(data.playlist.name)
-        if (data.playlist.isPrivate && data.playlist.privatePlaylistName) {
-          setPlaylistName(`${data.playlist.name} (${data.playlist.privatePlaylistName})`)
+        if (selectedPlaylist.isPrivate && selectedPlaylist.privatePlaylistName) {
+          setPlaylistName(`${data.playlist.name} (${selectedPlaylist.privatePlaylistName})`)
         }
         setPlaylistImage(data.playlist.image)
         setArtists(data.playlist.artists)
@@ -89,15 +93,8 @@ export default function GroupTierlistPage() {
         setCurrentTrackIndices(initialIndices)
 
         // Establecer rankings grupales
-        setGroupRankings(data.groupRankings.scores)
-        setUserVotes(data.groupRankings.votes)
-
-        // Calcular número de usuarios únicos
-        const uniqueUserIds = new Set()
-        Object.values(data.groupRankings.votes).forEach((votes) => {
-          votes.forEach((vote) => uniqueUserIds.add(vote.userId))
-        })
-        setUserCount(uniqueUserIds.size)
+        setGroupRankings(data.groupTierlist.aggregatedRatings || {})
+        setUserCount(data.groupTierlist.userCount || 0)
       } catch (err) {
         console.error("Error al cargar datos:", err)
         setError(err.message || "Error al cargar la tierlist grupal")
@@ -115,7 +112,7 @@ export default function GroupTierlistPage() {
         audio.src = ""
       }
     }
-  }, [router, session, status, searchParams])
+  }, [router, session, status])
 
   const handlePlayTrack = (artist, trackIndex) => {
     const track = artist.tracks[trackIndex]
