@@ -5,7 +5,6 @@ import { processPlaylistData } from "@/lib/spotify-api";
 import {
   getOrCreatePlaylist,
   getOrCreateArtist,
-  getOrCreateTrack,
   addUserToPlaylist,
   getUserByEmail,
   getPlaylistBySpotifyId,
@@ -189,20 +188,6 @@ export async function POST(request: NextRequest) {
             name: artistData.name,
             image: artistData.image,
           });
-
-          // Guardar pistas del artista
-          await Promise.all(
-            artistData.tracks.map((trackData: any) =>
-              getOrCreateTrack({
-                spotifyId: trackData.id,
-                name: trackData.name,
-                previewUrl: trackData.previewUrl,
-                albumName: trackData.albumName,
-                albumImage: trackData.albumImage,
-                artistId: artist.id,
-              })
-            )
-          );
         })
       );
     }
