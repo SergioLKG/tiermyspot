@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Play, Pause, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
+import { getSelectedPlaylist } from "@/lib/utils"
 
 // Default tiers
 const TIERS = [
@@ -37,6 +38,7 @@ export default function TierlistPage() {
   const [loadingMessage, setLoadingMessage] = useState("")
   const internalRouter = useRouter()
   const searchParams = useSearchParams()
+  const router = useRouter()
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -51,21 +53,24 @@ export default function TierlistPage() {
 
       try {
         setIsLoading(true)
+        setError(null)
 
-        // Obtener ID de la playlist de los parámetros de búsqueda
-        const id = searchParams.get("id")
+        // Obtener la playlist seleccionada de la cookie
+        const selectedPlaylist = getSelectedPlaylist()
 
-        if (!id) {
-          // Si no hay ID en los parámetros, redirigir a importar
-          internalRouter.push("/import-playlist")
+        // Si no hay playlist seleccionada, redirigir al dashboard
+        if (!selectedPlaylist) {
+          router.push("/dashboard")
           return
         }
+
+        const playlistId = selectedPlaylist.id
 
         // Mostrar mensaje de carga específico
         setLoadingMessage("Cargando datos de la playlist...")
 
         // Obtener datos de la playlist
-        const playlistResponse = await fetch(`/api/playlists/${id}`)
+        const playlistResponse = await fetch(`/api/playlists/${playlistId}`)
 
         if (!playlistResponse.ok) {
           throw new Error("Error al cargar la playlist")
@@ -88,22 +93,15 @@ export default function TierlistPage() {
         })
         setCurrentTrackIndices(initialIndices)
 
-        // Obtener estadísticas de la playlist
-        setLoadingMessage("Cargando estadísticas...")
-        const statsResponse = await fetch(`/api/playlists/${id}/stats`)
-
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json()
-          setPlaylistStats(statsData)
-        }
-
-        // Obtener rankings del usuario
+        // Obtener tierlist del usuario
         setLoadingMessage("Cargando tus rankings...")
-        const rankingsResponse = await fetch(`/api/rankings?playlistId=${id}&type=user`)
+        const tierlistResponse = await fetch(
+          `/api/tierlists?playlistId=${playlistId}&privateName=${selectedPlaylist.privatePlaylistName || ""}`,
+        )
 
-        if (rankingsResponse.ok) {
-          const rankingsData = await rankingsResponse.json()
-          setRankings(rankingsData)
+        if (tierlistResponse.ok) {
+          const tierlistData = await tierlistResponse.json()
+          setRankings(tierlistData.ratings || {})
         }
       } catch (error) {
         console.error("Error al cargar datos:", error)
@@ -123,7 +121,7 @@ export default function TierlistPage() {
         audio.src = ""
       }
     }
-  }, [internalRouter, session, status, searchParams])
+  }, [router, session, status])
 
   const handleRankArtist = async (artistId, tierId) => {
     try {
@@ -523,4 +521,3 @@ export default function TierlistPage() {
     </div>
   )
 }
-
