@@ -405,6 +405,7 @@ export async function processPlaylistData(
     if (!artistsMap[artist.id]) {
       artistsMap[artist.id] = {
         id: artist.id,
+        spotifyId: artist.id,
         name: artist.name,
         image: null, // Will be updated later
         tracks: [],

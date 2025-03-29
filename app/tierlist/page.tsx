@@ -6,8 +6,7 @@ import { useSession } from "next-auth/react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Play, Pause, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { getSelectedPlaylist } from "@/lib/utils"
@@ -88,8 +87,8 @@ export default function TierlistPage() {
         setArtists(playlistData.artists)
 
         // Inicializar índices de pistas actuales
-        const initialIndices: any = {}
-        playlistData.artists.forEach((artist: any) => {
+        const initialIndices = {}
+        playlistData.artists.forEach((artist) => {
           initialIndices[artist.id] = 0
         })
         setCurrentTrackIndices(initialIndices)
@@ -123,10 +122,10 @@ export default function TierlistPage() {
     }
   }, [router, session, status])
 
-  const handleRankArtist = async (artistId: any, tierId: any) => {
+  const handleRankArtist = async (artistId:any, tierId:any) => {
     try {
       // Si el artista ya está clasificado con este tier, quitarlo
-      const newRankings: any = { ...rankings }
+      const newRankings:any = { ...rankings }
 
       if (rankings[artistId] === tierId) {
         delete newRankings[artistId]
@@ -169,7 +168,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handlePlayTrack = (artist: any, trackIndex: any) => {
+  const handlePlayTrack = (artist:any, trackIndex:any) => {
     const track = artist.tracks[trackIndex]
     if (!track || !track.previewUrl) {
       console.error("No hay URL de previsualización disponible para esta pista")
@@ -195,7 +194,7 @@ export default function TierlistPage() {
 
       // Configurar eventos
       newAudio.addEventListener("canplay", () => {
-        newAudio.play().catch((error: any) => {
+        newAudio.play().catch((error) => {
           console.error("Error al reproducir audio:", error)
         })
       })
@@ -216,7 +215,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handleNextTrack = (artistId: any) => {
+  const handleNextTrack = (artistId:any) => {
     const artist = artists.find((a) => a.id === artistId)
     if (!artist) return
 
@@ -234,7 +233,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handlePrevTrack = (artistId: any) => {
+  const handlePrevTrack = (artistId:any) => {
     const artist = artists.find((a) => a.id === artistId)
     if (!artist) return
 
@@ -299,7 +298,7 @@ export default function TierlistPage() {
           </div>
 
           <div className="grid gap-4">
-            {TIERS.map((tier: any) => (
+            {TIERS.map((tier) => (
               <div key={tier.id} className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm">
@@ -307,108 +306,38 @@ export default function TierlistPage() {
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {artists
-                      .filter((artist: any) => rankings[artist.id] === tier.id)
-                      .map((artist: any) => (
-                        <Card key={artist.id} className="w-[160px] transition-all hover:shadow-md">
-                          <CardContent className="p-3">
-                            <div
-                              className="relative mb-2 group cursor-pointer"
-                              onClick={() => handlePlayTrack(artist, currentTrackIndices[artist.id])}
-                            >
-                              <Image
-                                src={artist.image || "/placeholder.svg"}
-                                alt={artist.name}
-                                width={80}
-                                height={80}
-                                className="rounded-md mx-auto shadow-sm"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-md flex items-center justify-center transition-opacity">
-                                {artist.tracks.length > 0 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white"
-                                  >
-                                    {playingTrack ===
-                                    `${artist.id}_${artist.tracks[currentTrackIndices[artist.id]]?.id}` ? (
-                                      <Pause className="h-5 w-5" />
-                                    ) : (
-                                      <Play className="h-5 w-5" />
-                                    )}
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-xs text-center font-medium mb-1">{artist.name}</p>
-
-                            {/* Track navigation and playback */}
-                            {artist.tracks.length > 0 && (
-                              <div className="mt-2">
-                                <div className="flex items-center justify-between mb-1 bg-muted/50 rounded-md px-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={() => handlePrevTrack(artist.id)}
-                                    disabled={artist.tracks.length <= 1}
-                                  >
-                                    <ChevronLeft className="h-4 w-4" />
-                                  </Button>
-                                  <div className="text-xs truncate max-w-[120px] text-center">
-                                    {artist.tracks[currentTrackIndices[artist.id]]?.name || "No track"}
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6"
-                                    onClick={() => handleNextTrack(artist.id)}
-                                    disabled={artist.tracks.length <= 1}
-                                  >
-                                    <ChevronRight className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  className="w-full h-7 text-xs"
-                                  onClick={() => handlePlayTrack(artist, currentTrackIndices[artist.id])}
-                                >
-                                  {playingTrack ===
-                                  `${artist.id}_${artist.tracks[currentTrackIndices[artist.id]]?.id}` ? (
-                                    <>
-                                      <Pause className="h-3 w-3 mr-1" /> Pausar
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Play className="h-3 w-3 mr-1" /> Escuchar
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-3 gap-0.5 mt-2">
-                              {TIERS.map((t) => (
-                                <Button
-                                  key={t.id}
-                                  variant={t.id === tier.id ? "default" : "outline"}
-                                  size="sm"
-                                  className={`h-5 px-1 text-xs transition-all ${
-                                    t.id === tier.id
-                                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                      : "hover:bg-muted"
-                                  }`}
-                                  onClick={() => handleRankArtist(artist.id, t.id)}
-                                  title={
-                                    t.id === tier.id ? "Haz clic para quitar de este tier" : `Mover a tier ${t.label}`
-                                  }
-                                >
-                                  {t.label}
-                                </Button>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
+                      .filter((artist:any) => rankings[artist.id] === tier.id)
+                      .map((artist:any) => (
+                        <ArtistCard
+                          key={artist.id}
+                          artist={artist}
+                          currentTrackIndex={currentTrackIndices[artist.id] || 0}
+                          playingTrackId={playingTrack}
+                          onPlay={handlePlayTrack}
+                          onNext={handleNextTrack}
+                          onPrev={handlePrevTrack}
+                        >
+                          <div className="grid grid-cols-3 gap-0.5 mt-2">
+                            {TIERS.map((t) => (
+                              <Button
+                                key={t.id}
+                                variant={t.id === tier.id ? "default" : "outline"}
+                                size="sm"
+                                className={`h-5 px-1 text-xs transition-all ${
+                                  t.id === tier.id
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                    : "hover:bg-muted"
+                                }`}
+                                onClick={() => handleRankArtist(artist.id, t.id)}
+                                title={
+                                  t.id === tier.id ? "Haz clic para quitar de este tier" : `Mover a tier ${t.label}`
+                                }
+                              >
+                                {t.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </ArtistCard>
                       ))}
                   </div>
                 </div>
@@ -420,8 +349,8 @@ export default function TierlistPage() {
             <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
             <div className="flex flex-wrap gap-4">
               {artists
-                .filter((artist: any) => !rankings[artist.id])
-                .map((artist: any) => (
+                .filter((artist:any) => !rankings[artist.id])
+                .map((artist:any) => (
                   <ArtistCard
                     key={artist.id}
                     artist={artist}

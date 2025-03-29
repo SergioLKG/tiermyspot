@@ -256,10 +256,55 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
   return safeSerialize(result)
 }
 
-export async function getArtistBySpotifyId(spotifyId: string) {
+// Reemplazar la función getPlaylistArtists existente con esta versión corregida
+export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection()
-  const result = await db.select().from(artists).where(sql`${artists.spotifyId} = ${spotifyId}`)
-  return safeSerialize(result[0])
+
+  // Primero, necesitamos obtener los IDs de los artistas asociados a esta playlist
+  // Esto requiere una consulta más compleja que antes
+
+  // Obtener la playlist para verificar su ID de Spotify
+  const playlistData = await db.select().from(playlists).where(sql`${playlists.id} = ${playlistId}`)
+
+  if (playlistData.length === 0) {
+    return []
+  }
+
+  const spotifyId = playlistData[0].spotifyId
+
+  // Ahora, necesitamos encontrar los artistas que están asociados a esta playlist
+  // Esto implica buscar en la tabla de tracks
+
+  // Primero, obtenemos todos los artistas que tienen tracks
+  const artistsWithTracks = await db
+    .select({
+      id: artists.id,
+      spotifyId: artists.spotifyId,
+      name: artists.name,
+      image: artists.image,
+    })
+    .from(artists)
+    .where(sql`EXISTS (SELECT 1 FROM tracks WHERE tracks.artist_id = ${artists.id})`)
+
+  // Ahora, para cada artista, verificamos si tiene tracks asociados a esta playlist
+  // Esto es una simplificación, ya que no tenemos una relación directa entre playlists y tracks
+  // En una implementación real, necesitaríamos una tabla de relación
+
+  // Por ahora, asumiremos que todos los artistas con tracks están asociados a todas las playlists
+  // Esto es una solución temporal hasta que implementemos una relación adecuada
+
+  return safeSerialize(artistsWithTracks)
+}
+
+export async function getArtistBySpotifyId(spotifyId: string) {
+  try {
+    const db = getDbConnection()
+    const result = await db.select().from(artists).where(sql`${artists.spotifyId} = ${spotifyId}`)
+    return safeSerialize(result[0])
+  } catch (error) {
+    console.error("Error al obtener artista por spotifyId:", error)
+    throw error
+  }
 }
 
 export async function createArtist(artistData: { spotifyId: string; name: string; image?: string }) {
@@ -273,6 +318,17 @@ export async function getOrCreateArtist(artistData: { spotifyId: string; name: s
 
   if (!artist) {
     artist = await createArtist(artistData)
+  } else {
+    // Actualizar la imagen si ha cambiado
+    if (artistData.image && artistData.image !== artist.image) {
+      const db = getDbConnection()
+      const result = await db
+        .update(artists)
+        .set({ image: artistData.image })
+        .where(sql`${artists.id} = ${artist.id}`)
+        .returning()
+      artist = safeSerialize(result[0])
+    }
   }
 
   return artist
@@ -561,25 +617,6 @@ export async function getUserTierlistsForPlaylist(userId: number, playlistId: nu
   return safeSerialize(result)
 }
 
-export async function getPlaylistArtists(playlistId: number) {
-  // Esta función ahora debe obtener los artistas asociados a una playlist
-  // a través de las pistas que tienen los artistas
-  const db = getDbConnection()
-
-  // Obtener todos los artistas que tienen pistas
-  const artistsWithTracks = await db
-    .select({
-      id: artists.id,
-      spotifyId: artists.spotifyId,
-      name: artists.name,
-      image: artists.image,
-    })
-    .from(artists)
-    .where(sql`EXISTS (SELECT 1 FROM tracks WHERE tracks.artist_id = ${artists.id})`)
-
-  return safeSerialize(artistsWithTracks)
-}
-
 export async function getFullPlaylistData(playlistId: number) {
   const db = getDbConnection()
   const playlistData = await db.select().from(playlists).where(sql`${playlists.id} = ${playlistId}`)
@@ -641,4 +678,11 @@ export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
     console.error("Error al obtener datos completos de playlist por Spotify ID:", error)
     throw error
   }
+}
+
+export async function getTierlists(userId: number) {
+  const db = getDbConnection()
+  const result = await db.select().from(tierlists).where(sql`${tierlists.userId} = ${userId}`)
+
+  return safeSerialize(result)
 }
