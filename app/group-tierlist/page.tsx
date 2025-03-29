@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Play, Pause, ChevronLeft, ChevronRight, Loader2, Users, AlertTriangle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { getSelectedPlaylist } from "@/lib/utils"
+import { getSelectedPlaylist } from "@/lib/playlist-selection"
 
 // Default tiers
 const TIERS = [
