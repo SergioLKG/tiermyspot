@@ -10,7 +10,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Play, Pause, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { getSelectedPlaylist } from "@/lib/playlist-selection"
+import { getSelectedPlaylist } from "@/lib/utils"
+import { usePersistentState } from "@/hooks/use-persistent-state"
+import { ArtistCard } from "@/components/artist-card"
+import { cachedFetch } from "@/lib/api-cache"
 
 // Default tiers
 const TIERS = [
@@ -24,14 +27,14 @@ const TIERS = [
 
 export default function TierlistPage() {
   const { data: session, status } = useSession()
-  const [rankings, setRankings] = useState({})
+  const [artists, setArtists] = usePersistentState("tierlist-artists", [])
+  const [rankings, setRankings] = usePersistentState("tierlist-rankings", {})
+  const [playlistName, setPlaylistName] = usePersistentState("tierlist-playlist-name", "")
+  const [playlistImage, setPlaylistImage] = usePersistentState("tierlist-playlist-image", "")
+  const [playlistId, setPlaylistId] = usePersistentState("tierlist-playlist-id", "")
   const [playingTrack, setPlayingTrack] = useState(null)
   const [audio, setAudio] = useState(null)
-  const [artists, setArtists] = useState([])
   const [currentTrackIndices, setCurrentTrackIndices] = useState({})
-  const [playlistName, setPlaylistName] = useState("")
-  const [playlistImage, setPlaylistImage] = useState("")
-  const [playlistId, setPlaylistId] = useState("")
   const [playlistStats, setPlaylistStats] = useState({ userCount: 0 })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -70,13 +73,11 @@ export default function TierlistPage() {
         setLoadingMessage("Cargando datos de la playlist...")
 
         // Obtener datos de la playlist
-        const playlistResponse = await fetch(`/api/playlists/${playlistId}`)
+        const playlistData = await cachedFetch(`/api/playlists/${playlistId}`)
 
-        if (!playlistResponse.ok) {
+        if (!playlistData) {
           throw new Error("Error al cargar la playlist")
         }
-
-        const playlistData = await playlistResponse.json()
 
         setPlaylistId(playlistData.id)
         setPlaylistName(playlistData.name)
@@ -87,20 +88,19 @@ export default function TierlistPage() {
         setArtists(playlistData.artists)
 
         // Inicializar índices de pistas actuales
-        const initialIndices = {}
-        playlistData.artists.forEach((artist) => {
+        const initialIndices: any = {}
+        playlistData.artists.forEach((artist: any) => {
           initialIndices[artist.id] = 0
         })
         setCurrentTrackIndices(initialIndices)
 
         // Obtener tierlist del usuario
         setLoadingMessage("Cargando tus rankings...")
-        const tierlistResponse = await fetch(
+        const tierlistData = await cachedFetch(
           `/api/tierlists?playlistId=${playlistId}&privateName=${selectedPlaylist.privatePlaylistName || ""}`,
         )
 
-        if (tierlistResponse.ok) {
-          const tierlistData = await tierlistResponse.json()
+        if (tierlistData) {
           setRankings(tierlistData.ratings || {})
         }
       } catch (error) {
@@ -123,51 +123,53 @@ export default function TierlistPage() {
     }
   }, [router, session, status])
 
-  const handleRankArtist = async (artistId, tierId) => {
+  const handleRankArtist = async (artistId: any, tierId: any) => {
     try {
       // Si el artista ya está clasificado con este tier, quitarlo
-      const newRankings = { ...rankings }
+      const newRankings: any = { ...rankings }
 
       if (rankings[artistId] === tierId) {
         delete newRankings[artistId]
         setRankings(newRankings)
-
-        // Enviar a la API
-        await fetch("/api/rankings", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            playlistId,
-            artistId,
-            tierId: null, // Eliminar ranking
-          }),
-        })
       } else {
         // Si no, clasificarlo o cambiar su clasificación
         newRankings[artistId] = tierId
         setRankings(newRankings)
+      }
 
-        // Enviar a la API
-        await fetch("/api/rankings", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            playlistId,
-            artistId,
-            tierId,
-          }),
-        })
+      // Enviar a la API
+      const response = await fetch("/api/rankings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          playlistId,
+          artistId,
+          tierId: rankings[artistId] === tierId ? null : tierId,
+          privateName: getSelectedPlaylist()?.privatePlaylistName,
+        }),
+      })
+
+      if (!response.ok) {
+        // Si hay un error, revertir el cambio local
+        console.error("Error al guardar ranking:", await response.text())
+        setRankings({ ...rankings }) // Restaurar el estado anterior
+
+        // Mostrar un mensaje de error al usuario
+        // Puedes implementar un sistema de notificaciones o usar un toast
+        alert("Error al guardar el ranking. Por favor, inténtalo de nuevo.")
       }
     } catch (error) {
       console.error("Error al guardar ranking:", error)
+      // Revertir el cambio local
+      setRankings({ ...rankings })
+      // Mostrar un mensaje de error al usuario
+      alert("Error al guardar el ranking. Por favor, inténtalo de nuevo.")
     }
   }
 
-  const handlePlayTrack = (artist, trackIndex) => {
+  const handlePlayTrack = (artist: any, trackIndex: any) => {
     const track = artist.tracks[trackIndex]
     if (!track || !track.previewUrl) {
       console.error("No hay URL de previsualización disponible para esta pista")
@@ -193,7 +195,7 @@ export default function TierlistPage() {
 
       // Configurar eventos
       newAudio.addEventListener("canplay", () => {
-        newAudio.play().catch((error) => {
+        newAudio.play().catch((error: any) => {
           console.error("Error al reproducir audio:", error)
         })
       })
@@ -214,7 +216,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handleNextTrack = (artistId) => {
+  const handleNextTrack = (artistId: any) => {
     const artist = artists.find((a) => a.id === artistId)
     if (!artist) return
 
@@ -232,7 +234,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handlePrevTrack = (artistId) => {
+  const handlePrevTrack = (artistId: any) => {
     const artist = artists.find((a) => a.id === artistId)
     if (!artist) return
 
@@ -297,7 +299,7 @@ export default function TierlistPage() {
           </div>
 
           <div className="grid gap-4">
-            {TIERS.map((tier) => (
+            {TIERS.map((tier: any) => (
               <div key={tier.id} className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm">
@@ -305,8 +307,8 @@ export default function TierlistPage() {
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {artists
-                      .filter((artist) => rankings[artist.id] === tier.id)
-                      .map((artist) => (
+                      .filter((artist: any) => rankings[artist.id] === tier.id)
+                      .map((artist: any) => (
                         <Card key={artist.id} className="w-[160px] transition-all hover:shadow-md">
                           <CardContent className="p-3">
                             <div
@@ -418,99 +420,31 @@ export default function TierlistPage() {
             <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
             <div className="flex flex-wrap gap-4">
               {artists
-                .filter((artist) => !rankings[artist.id])
-                .map((artist) => (
-                  <Card key={artist.id} className="w-[160px] transition-all hover:shadow-md">
-                    <CardContent className="p-3">
-                      <div
-                        className="relative mb-2 group cursor-pointer"
-                        onClick={() => handlePlayTrack(artist, currentTrackIndices[artist.id])}
-                      >
-                        <Image
-                          src={artist.image || "/placeholder.svg"}
-                          alt={artist.name}
-                          width={80}
-                          height={80}
-                          className="rounded-md mx-auto shadow-sm"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-md flex items-center justify-center transition-opacity">
-                          {artist.tracks.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white"
-                            >
-                              {playingTrack === `${artist.id}_${artist.tracks[currentTrackIndices[artist.id]]?.id}` ? (
-                                <Pause className="h-5 w-5" />
-                              ) : (
-                                <Play className="h-5 w-5" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-xs text-center font-medium mb-2">{artist.name}</p>
-
-                      {/* Track navigation and playback */}
-                      {artist.tracks.length > 0 && (
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between mb-1 bg-muted/50 rounded-md px-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => handlePrevTrack(artist.id)}
-                              disabled={artist.tracks.length <= 1}
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <div className="text-xs truncate max-w-[100px] text-center">
-                              {artist.tracks[currentTrackIndices[artist.id]]?.name || "No track"}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => handleNextTrack(artist.id)}
-                              disabled={artist.tracks.length <= 1}
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => handlePlayTrack(artist, currentTrackIndices[artist.id])}
-                          >
-                            {playingTrack === `${artist.id}_${artist.tracks[currentTrackIndices[artist.id]]?.id}` ? (
-                              <>
-                                <Pause className="h-4 w-4 mr-1" /> Pausar
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4 mr-1" /> Escuchar
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-3 gap-1">
-                        {TIERS.map((tier) => (
-                          <Button
-                            key={tier.id}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 px-2 transition-all hover:bg-muted"
-                            onClick={() => handleRankArtist(artist.id, tier.id)}
-                          >
-                            {tier.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                .filter((artist: any) => !rankings[artist.id])
+                .map((artist: any) => (
+                  <ArtistCard
+                    key={artist.id}
+                    artist={artist}
+                    currentTrackIndex={currentTrackIndices[artist.id] || 0}
+                    playingTrackId={playingTrack}
+                    onPlay={handlePlayTrack}
+                    onNext={handleNextTrack}
+                    onPrev={handlePrevTrack}
+                  >
+                    <div className="grid grid-cols-3 gap-1 mt-2">
+                      {TIERS.map((tier) => (
+                        <Button
+                          key={tier.id}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 transition-all hover:bg-muted"
+                          onClick={() => handleRankArtist(artist.id, tier.id)}
+                        >
+                          {tier.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </ArtistCard>
                 ))}
             </div>
           </div>

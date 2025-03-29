@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
-import { getUserByEmail, setUserRanking, deleteUserRanking, getUserRankings, getPlaylistRankings } from "@/lib/db"
+import { getUserByEmail, updateTierlistRating, getTierlist } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,34 +13,28 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const playlistId = searchParams.get("playlistId")
-    const type = searchParams.get("type") || "user"
+    const privateName = searchParams.get("privateName") || undefined
 
     if (!playlistId) {
       return NextResponse.json({ error: "ID de playlist no proporcionado" }, { status: 400 })
     }
 
-    if (type === "user") {
-      const user = await getUserByEmail(session.user.email)
+    const user = await getUserByEmail(session.user.email)
 
-      if (!user) {
-        return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
-      }
-
-      const rankings = await getUserRankings(user.id, Number.parseInt(playlistId))
-
-      const formattedRankings = rankings.reduce((acc, ranking) => {
-        acc[ranking.artistId] = ranking.tierId
-        return acc
-      }, {})
-
-      return NextResponse.json(formattedRankings)
-    } else if (type === "group") {
-      const rankings = await getPlaylistRankings(Number.parseInt(playlistId))
-
-      return NextResponse.json(rankings)
+    if (!user) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    return NextResponse.json({ error: "Tipo de ranking no válido" }, { status: 400 })
+    // Obtener la tierlist del usuario
+    const tierlist = await getTierlist(user.id, Number.parseInt(playlistId), privateName)
+
+    // Si no existe la tierlist, devolver un objeto vacío
+    if (!tierlist) {
+      return NextResponse.json({})
+    }
+
+    // Devolver los ratings de la tierlist
+    return NextResponse.json(tierlist.ratings || {})
   } catch (error) {
     console.error("Error al obtener rankings:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -55,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const { playlistId, artistId, tierId } = await request.json()
+    const { playlistId, artistId, tierId, privateName } = await request.json()
 
     if (!playlistId || !artistId) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 })
@@ -67,11 +61,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    if (tierId) {
-      await setUserRanking(user.id, Number.parseInt(playlistId), Number.parseInt(artistId), tierId)
-    } else {
-      await deleteUserRanking(user.id, Number.parseInt(playlistId), Number.parseInt(artistId))
-    }
+    // Usar updateTierlistRating en lugar de setUserRanking/deleteUserRanking
+    await updateTierlistRating(user.id, Number.parseInt(playlistId), Number.parseInt(artistId), tierId, privateName)
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -79,4 +70,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-

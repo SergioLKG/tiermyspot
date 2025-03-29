@@ -14,7 +14,7 @@ import { extractPlaylistId } from "@/lib/spotify-api"
 import { SpotifyButton } from "@/components/ui/spotify-button"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { setSelectedPlaylist } from "@/lib/playlist-selection"
+import { setSelectedPlaylist } from "@/lib/utils"
 
 export default function ImportPlaylistPage() {
   const { data: session, status, update } = useSession()

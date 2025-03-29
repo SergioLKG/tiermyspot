@@ -22,15 +22,20 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
   const isPlaying = playingTrackId === `${artist.id}_${currentTrack?.id}`
   const currentTrackHasPreview = currentTrack?.previewUrl ? true : false
 
+  // Asegurarnos de que la imagen del artista sea válida
+  const artistImage =
+    artist.image ||
+    "/placeholder.svg?height=100&width=100&text=" + encodeURIComponent(artist.name?.substring(0, 2) || "?")
+
   return (
     <Card className="w-[160px] transition-all hover:shadow-md">
       <CardContent className="p-3">
         <div
-          className="relative mb-2 group cursor-pointer"
+          className={`relative mb-2 group ${currentTrackHasPreview ? "cursor-pointer" : ""}`}
           onClick={() => currentTrackHasPreview && onPlay(artist, currentTrackIndex)}
         >
           <Image
-            src={artist.image || "/placeholder.svg"}
+            src={artistImage || "/placeholder.svg"}
             alt={artist.name}
             width={80}
             height={80}
@@ -50,8 +55,8 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
         </div>
         <p className="text-xs text-center font-medium mb-1">{artist.name}</p>
 
-        {/* Track navigation and playback */}
-        {artist.tracks && artist.tracks.length > 0 && (
+        {/* Track navigation and playback - solo mostrar si hay al menos una pista con previewUrl */}
+        {hasPreviewUrl && artist.tracks && artist.tracks.length > 0 ? (
           <div className="mt-2">
             <div className="flex items-center justify-between mb-1 bg-muted/50 rounded-md px-1">
               <Button
@@ -94,6 +99,8 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
               )}
             </Button>
           </div>
+        ) : (
+          <div className="mt-2 text-xs text-center text-muted-foreground">No hay previsualizaciones disponibles</div>
         )}
 
         {children}
