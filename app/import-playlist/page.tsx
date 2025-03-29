@@ -1,109 +1,95 @@
-"use client";
+// Modificar el componente para mostrar el estado de renovación del token
+"use client"
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useSession, signIn } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { extractPlaylistId } from "@/lib/spotify-api";
-import { SpotifyButton } from "@/components/ui/spotify-button";
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useSession, signIn } from "next-auth/react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react"
+import { extractPlaylistId } from "@/lib/spotify-api"
+import { SpotifyButton } from "@/components/ui/spotify-button"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
+import { setSelectedPlaylist } from "@/lib/playlist-selection"
 
 export default function ImportPlaylistPage() {
-  const { data: session, status } = useSession();
-  const [playlistUrl, setPlaylistUrl] = useState("");
-  const [privatePlaylistName, setPrivatePlaylistName] = useState("");
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // Auto-import playlist when URL and name params are present
-  const autoImportPlaylist = async (url: string, privateName?: string) => {
-    setPlaylistUrl(url);
-    if (privateName) {
-      setIsPrivate(true);
-      setPrivatePlaylistName(privateName);
-    }
-
-    try {
-      await handleImportPlaylist(new Event('autoImport') as any);
-    } catch (err) {
-      console.error("Auto import failed:", err);
-    }
-  };
+  const { data: session, status, update } = useSession()
+  const [playlistUrl, setPlaylistUrl] = useState("")
+  const [privatePlaylistName, setPrivatePlaylistName] = useState("")
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [isRenewingToken, setIsRenewingToken] = useState(false)
+  const [progress, setProgress] = useState("Iniciando importación...")
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      router.push("/login")
     }
-  }, [status, router]);
+  }, [status, router])
 
-  // Verificar si hay parámetros de URL para playlist privada o importación
+  // Verificar si hay parámetros de URL para playlist privada
   useEffect(() => {
-    const playlistParam = searchParams.get("url");
-    const privatePlaylistParam = searchParams.get("pp");
-
-    if (privatePlaylistParam) {
+    const pp = searchParams.get("pp")
+    if (pp) {
       setIsPrivate(true)
-      setPrivatePlaylistName(decodeURIComponent(privatePlaylistParam))
+      setPrivatePlaylistName(decodeURIComponent(pp))
     }
 
+    // Verificar si hay una URL de playlist en los parámetros
+    const playlistParam = searchParams.get("url")
     if (playlistParam) {
       setPlaylistUrl(decodeURIComponent(playlistParam))
     }
+  }, [searchParams])
 
-    // Si hay URL de playlist y estamos autenticados, intentar importar automáticamente
-    if (playlistParam && session?.accessToken) {
-      const decodedUrl = decodeURIComponent(playlistParam);
-      const decodedPrivateName = privatePlaylistParam 
-        ? decodeURIComponent(privatePlaylistParam) 
-        : undefined;
-      
-      autoImportPlaylist(decodedUrl, decodedPrivateName);
+  // Función para renovar el token de sesión
+  const renewToken = async () => {
+    setIsRenewingToken(true)
+    try {
+      await update() // Esto actualiza la sesión, incluyendo el token
+      setError("")
+      setIsRenewingToken(false)
+      return true
+    } catch (err) {
+      console.error("Error al renovar el token:", err)
+      setError("No se pudo renovar el token. Por favor, inicie sesión de nuevo.")
+      setIsRenewingToken(false)
+      return false
     }
-  }, [searchParams, session]);
+  }
 
-  const handleImportPlaylist = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
+  const handleImportPlaylist = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
 
     try {
       // Verificar que tenemos una sesión con token de acceso
       if (!session?.accessToken) {
-        throw new Error(
-          "No hay sesión activa con Spotify. Por favor, inicia sesión de nuevo."
-        );
+        throw new Error("No hay sesión activa con Spotify. Por favor, inicia sesión de nuevo.")
       }
 
       // Extraer ID de la playlist
-      const playlistId = extractPlaylistId(playlistUrl);
+      const playlistId = extractPlaylistId(playlistUrl)
 
       if (!playlistId) {
-        throw new Error(
-          "URL de playlist inválida. Por favor, introduce un enlace de compartición de Spotify válido."
-        );
+        throw new Error("URL de playlist inválida. Por favor, introduce un enlace de compartición de Spotify válido.")
       }
 
+      setProgress("Verificando playlist...")
+
       // Enviar datos a la API
-      const response = await fetch("/api/import-playlist", {
+      let response = await fetch("/api/import-playlist", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -113,44 +99,82 @@ export default function ImportPlaylistPage() {
           isPrivate,
           privatePlaylistName: isPrivate ? privatePlaylistName : undefined,
         }),
-      });
+      })
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Error al importar la playlist");
+      // Si el token ha expirado, intentar renovarlo automáticamente
+      if (response.status === 401) {
+        const errorData = await response.json()
+        if (
+          errorData.error &&
+          (errorData.error.includes("token de acceso ha expirado") ||
+            errorData.error.includes("No se pudo renovar el token"))
+        ) {
+          setProgress("Renovando token de acceso...")
+          const renewed = await renewToken()
+
+          if (renewed) {
+            // Intentar de nuevo con el token renovado
+            setProgress("Reintentando importación...")
+            response = await fetch("/api/import-playlist", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                playlistId,
+                isPrivate,
+                privatePlaylistName: isPrivate ? privatePlaylistName : undefined,
+              }),
+            })
+          } else {
+            throw new Error("No se pudo renovar el token de acceso. Por favor, inicia sesión de nuevo.")
+          }
+        }
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Error al importar la playlist")
+      }
 
-      setSuccess("¡Playlist importada correctamente! Redirigiendo...");
+      const data = await response.json()
+
+      // Guardar la playlist seleccionada en una cookie
+      setSelectedPlaylist({
+        id: data.playlistId,
+        name: data.privatePlaylistName || data.name,
+        image: data.image,
+        isPrivate: data.isPrivate,
+        privatePlaylistName: data.privatePlaylistName,
+      })
+
+      setSuccess("¡Playlist importada correctamente! Redirigiendo...")
 
       // Redirigir a la página de tierlist
       setTimeout(() => {
-        router.push("/tierlist?id=" + data.playlistId);
-      }, 1500);
-    } catch (err: any) {
-      setError(
-        err.message ||
-          "Error al importar la playlist. Por favor, inténtalo de nuevo."
-      );
+        router.push("/tierlist")
+      }, 1500)
+    } catch (err) {
+      setError(err.message || "Error al importar la playlist. Por favor, inténtalo de nuevo.")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
+      setProgress("")
     }
-  };
+  }
 
   // Generar URL compartible
   const generateShareableUrl = () => {
-    if (!playlistUrl) return "";
+    if (!playlistUrl) return ""
 
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    let shareUrl = `${baseUrl}/import-playlist?url=${encodeURIComponent(playlistUrl)}`;
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+    let shareUrl = `${baseUrl}/import-playlist?url=${encodeURIComponent(playlistUrl)}`
 
     if (isPrivate && privatePlaylistName) {
-      shareUrl += `&pp=${encodeURIComponent(privatePlaylistName)}`;
+      shareUrl += `&pp=${encodeURIComponent(privatePlaylistName)}`
     }
 
-    return shareUrl;
-  };
+    return shareUrl
+  }
 
   // Mostrar pantalla de carga mientras se verifica la sesión
   if (status === "loading") {
@@ -161,7 +185,7 @@ export default function ImportPlaylistPage() {
           <p className="text-sm text-muted-foreground">Cargando...</p>
         </div>
       </div>
-    );
+    )
   }
 
   // Si no hay sesión, mostrar botón para iniciar sesión con Spotify
@@ -172,8 +196,7 @@ export default function ImportPlaylistPage() {
           <CardHeader>
             <CardTitle>Iniciar sesión con Spotify</CardTitle>
             <CardDescription>
-              Para importar playlists, necesitas iniciar sesión con tu cuenta de
-              Spotify.
+              Para importar playlists, necesitas iniciar sesión con tu cuenta de Spotify.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -183,7 +206,7 @@ export default function ImportPlaylistPage() {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
@@ -193,12 +216,9 @@ export default function ImportPlaylistPage() {
       <main className="flex-1 p-4 md:p-6 bg-muted/30">
         <div className="max-w-2xl mx-auto">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Importar Playlist
-            </h1>
+            <h1 className="text-3xl font-bold tracking-tight">Importar Playlist</h1>
             <p className="text-muted-foreground mt-2">
-              Importa una playlist de Spotify para crear tu tierlist
-              personalizada.
+              Importa una playlist de Spotify para crear tu tierlist personalizada.
             </p>
           </div>
 
@@ -206,20 +226,40 @@ export default function ImportPlaylistPage() {
             <CardHeader>
               <CardTitle>Importar Playlist de Spotify</CardTitle>
               <CardDescription>
-                Introduce el enlace de compartición de una playlist de Spotify
-                para importar los artistas y sus canciones.
+                Introduce el enlace de compartición de una playlist de Spotify para importar los artistas y sus
+                canciones.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleImportPlaylist}>
               <CardContent className="space-y-4">
                 {error && (
-                  <Alert
-                    variant="destructive"
-                    className="animate-in fade-in-50"
-                  >
+                  <Alert variant="destructive" className="animate-in fade-in-50">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>
+                      {error}
+                      {error.includes("token") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={renewToken}
+                          disabled={isRenewingToken}
+                        >
+                          {isRenewingToken ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Renovando token...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Renovar token
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </AlertDescription>
                   </Alert>
                 )}
 
@@ -256,8 +296,7 @@ export default function ImportPlaylistPage() {
                     required
                   />
                   <p className="text-sm text-muted-foreground">
-                    Ejemplo:
-                    https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
+                    Ejemplo: https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
                   </p>
                 </div>
 
@@ -269,16 +308,12 @@ export default function ImportPlaylistPage() {
                     onChange={(e) => setIsPrivate(e.target.checked)}
                     className="rounded border-gray-300 text-primary focus:ring-primary"
                   />
-                  <Label htmlFor="private-playlist">
-                    Crear playlist privada
-                  </Label>
+                  <Label htmlFor="private-playlist">Crear playlist privada</Label>
                 </div>
 
                 {isPrivate && (
                   <div className="space-y-2">
-                    <Label htmlFor="private-name">
-                      Nombre de la playlist privada
-                    </Label>
+                    <Label htmlFor="private-name">Nombre de la playlist privada</Label>
                     <Input
                       id="private-name"
                       placeholder="Ej: Festival con amigos"
@@ -297,26 +332,21 @@ export default function ImportPlaylistPage() {
                   <div className="space-y-2 p-3 bg-muted/30 rounded-md">
                     <Label>URL para compartir</Label>
                     <div className="flex">
-                      <Input
-                        value={generateShareableUrl()}
-                        readOnly
-                        className="bg-background"
-                      />
+                      <Input value={generateShareableUrl()} readOnly className="bg-background" />
                       <Button
                         type="button"
                         variant="outline"
                         className="ml-2"
                         onClick={() => {
-                          navigator.clipboard.writeText(generateShareableUrl());
-                          alert("URL copiada al portapapeles");
+                          navigator.clipboard.writeText(generateShareableUrl())
+                          alert("URL copiada al portapapeles")
                         }}
                       >
                         Copiar
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Comparte este enlace para que otros puedan importar la
-                      misma playlist.
+                      Comparte este enlace para que otros puedan importar la misma playlist.
                     </p>
                   </div>
                 )}
@@ -324,13 +354,18 @@ export default function ImportPlaylistPage() {
               <CardFooter>
                 <Button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || isRenewingToken}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-700 hover:from-green-600 hover:to-emerald-800 text-white"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Importando...
+                      {progress || "Importando..."}
+                    </>
+                  ) : isRenewingToken ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Renovando token...
                     </>
                   ) : (
                     "Importar Playlist"
@@ -345,21 +380,12 @@ export default function ImportPlaylistPage() {
               <h2 className="text-xl font-bold mb-4">Instrucciones</h2>
               <div className="bg-card rounded-lg border p-4 shadow-sm">
                 <ol className="list-decimal pl-5 space-y-2">
+                  <li>Abre Spotify y navega a la playlist que quieres importar.</li>
                   <li>
-                    Abre Spotify y navega a la playlist que quieres importar.
+                    Haz clic en los tres puntos (...) y selecciona "Compartir" &gt; "Copiar enlace a la playlist".
                   </li>
-                  <li>
-                    Haz clic en los tres puntos (...) y selecciona "Compartir"
-                    &gt; "Copiar enlace a la playlist".
-                  </li>
-                  <li>
-                    Pega el enlace en el campo de arriba y haz clic en "Importar
-                    Playlist".
-                  </li>
-                  <li>
-                    Una vez importada, serás redirigido a tu tierlist donde
-                    podrás clasificar a los artistas.
-                  </li>
+                  <li>Pega el enlace en el campo de arriba y haz clic en "Importar Playlist".</li>
+                  <li>Una vez importada, serás redirigido a tu tierlist donde podrás clasificar a los artistas.</li>
                 </ol>
               </div>
             </div>
@@ -368,8 +394,7 @@ export default function ImportPlaylistPage() {
               <h2 className="text-xl font-bold mb-4">Playlists Privadas</h2>
               <div className="bg-card rounded-lg border p-4 shadow-sm">
                 <p className="mb-3">
-                  Las playlists privadas te permiten crear tierlists compartidas
-                  solo con personas específicas:
+                  Las playlists privadas te permiten crear tierlists compartidas solo con personas específicas:
                 </p>
                 <ul className="space-y-2">
                   <li className="flex items-start">
@@ -388,9 +413,26 @@ export default function ImportPlaylistPage() {
                       <circle cx="12" cy="12" r="10" />
                       <path d="m9 12 2 2 4-4" />
                     </svg>
+                    <span>Marca la casilla "Crear playlist privada" y asigna un nombre único.</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-5 w-5 mr-2 text-green-500 flex-shrink-0 mt-0.5"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
                     <span>
-                      Marca la casilla "Crear playlist privada" y asigna un
-                      nombre único.
+                      Comparte el enlace generado con tus amigos para que puedan unirse a la misma playlist privada.
                     </span>
                   </li>
                   <li className="flex items-start">
@@ -410,29 +452,7 @@ export default function ImportPlaylistPage() {
                       <path d="m9 12 2 2 4-4" />
                     </svg>
                     <span>
-                      Comparte el enlace generado con tus amigos para que puedan
-                      unirse a la misma playlist privada.
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-5 w-5 mr-2 text-green-500 flex-shrink-0 mt-0.5"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="m9 12 2 2 4-4" />
-                    </svg>
-                    <span>
-                      Las clasificaciones en playlists privadas solo se
-                      comparten entre quienes usan el mismo enlace.
+                      Las clasificaciones en playlists privadas solo se comparten entre quienes usan el mismo enlace.
                     </span>
                   </li>
                 </ul>
@@ -444,5 +464,5 @@ export default function ImportPlaylistPage() {
 
       <Footer />
     </div>
-  );
+  )
 }

@@ -20,13 +20,14 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
   const currentTrack = artist.tracks && artist.tracks.length > 0 ? artist.tracks[currentTrackIndex] : null
 
   const isPlaying = playingTrackId === `${artist.id}_${currentTrack?.id}`
+  const currentTrackHasPreview = currentTrack?.previewUrl ? true : false
 
   return (
     <Card className="w-[160px] transition-all hover:shadow-md">
       <CardContent className="p-3">
         <div
           className="relative mb-2 group cursor-pointer"
-          onClick={() => hasPreviewUrl && onPlay(artist, currentTrackIndex)}
+          onClick={() => currentTrackHasPreview && onPlay(artist, currentTrackIndex)}
         >
           <Image
             src={artist.image || "/placeholder.svg"}
@@ -36,7 +37,7 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
             className="rounded-md mx-auto shadow-sm"
           />
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-md flex items-center justify-center transition-opacity">
-            {hasPreviewUrl && (
+            {currentTrackHasPreview && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -77,10 +78,10 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
               variant="secondary"
               size="sm"
               className="w-full h-7 text-xs"
-              onClick={() => hasPreviewUrl && onPlay(artist, currentTrackIndex)}
-              disabled={!hasPreviewUrl}
+              onClick={() => currentTrackHasPreview && onPlay(artist, currentTrackIndex)}
+              disabled={!currentTrackHasPreview}
             >
-              {!hasPreviewUrl ? (
+              {!currentTrackHasPreview ? (
                 "No preview"
               ) : isPlaying ? (
                 <>

@@ -34,7 +34,7 @@ export function extractPlaylistId(url: string): string | null {
 
 // Caché en memoria para reducir llamadas a la API de Spotify
 const playlistCache = new Map();
-const CACHE_EXPIRY = 3600000; // 1 hora en milisegundos
+const CACHE_EXPIRY = 60 * 60 * 1000; // 1 hour
 
 // Función de espera para manejar retries
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,33 +54,51 @@ class SpotifyAPIError extends Error {
 export async function refreshSpotifyToken(
   refreshToken: string
 ): Promise<SpotifyTokens> {
-  const response = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${Buffer.from(
-        `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-      ).toString("base64")}`,
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-  });
+  try {
+    const response = await spotifyFetch(
+      "https://accounts.spotify.com/api/token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+          ).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
+      }
+    );
 
-  if (!response.ok) {
-    throw new SpotifyAPIError("Failed to refresh token", response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error getting access token:", errorData);
+      throw new Error(
+        `Failed to obtain access token: ${
+          errorData.error_description || errorData.error || "Unknown error"
+        }`
+      );
+    }
+
+    const data = await response.json();
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || refreshToken,
+      expiresAt: Date.now() + data.expires_in * 1000,
+    };
+  } catch (error) {
+    console.error("Error in getAccessToken:", error);
+    throw error;
   }
-
-  const data = await response.json();
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token || refreshToken,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
 }
 
-async function getPlaylistData(playlistId, accessToken) {
+async function getPlaylistData(
+  playlistId: string,
+  accessToken: string,
+  market: string = "ES"
+) {
   // Verificar si tenemos datos en caché y si son recientes
   const cacheKey = `playlist_${playlistId}`;
   const cachedData = playlistCache.get(cacheKey);
@@ -91,8 +109,8 @@ async function getPlaylistData(playlistId, accessToken) {
   }
 
   console.log("Obteniendo datos de playlist desde Spotify API");
-  const response = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}`,
+  const response = await spotifyFetch(
+    `https://api.spotify.com/v1/playlists/${playlistId}?market=${market}`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -105,7 +123,7 @@ async function getPlaylistData(playlistId, accessToken) {
     console.error("Error fetching playlist data:", errorData);
     throw new Error(
       `Failed to fetch playlist data: ${
-        errorData.error.message || "Unknown error"
+        errorData.error?.message || "Unknown error"
       }`
     );
   }
@@ -205,7 +223,7 @@ async function spotifyFetch(
 }
 
 // Función para obtener un token de acceso actualizado
-export async function getAccessToken(session): Promise<string> {
+export async function getAccessToken(session: any): Promise<string> {
   // Verificar si el token actual es válido
   if (session?.accessToken && session.expiresAt > Date.now()) {
     return session.accessToken;
@@ -225,9 +243,13 @@ export async function getAccessToken(session): Promise<string> {
   throw new Error("No hay tokens disponibles para obtener acceso");
 }
 
-export async function getPlaylist(playlistId: string, accessToken: string) {
+export async function getPlaylist(
+  playlistId: string,
+  accessToken: string,
+  market: string = "ES"
+) {
   const response = await spotifyFetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}`,
+    `https://api.spotify.com/v1/playlists/${playlistId}?market=${market}`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -241,7 +263,8 @@ export async function getPlaylist(playlistId: string, accessToken: string) {
 
 export async function getPlaylistTracks(
   playlistId: string,
-  accessToken: string
+  accessToken: string,
+  market: string = "ES"
 ) {
   const cacheKey = `tracks_${playlistId}`;
   const cachedData = playlistCache.get(cacheKey);
@@ -252,7 +275,7 @@ export async function getPlaylistTracks(
   }
 
   let tracks: any[] = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}`;
 
   while (url) {
     const response = await spotifyFetch(url, {
@@ -267,7 +290,7 @@ export async function getPlaylistTracks(
       console.error("Error fetching playlist tracks:", errorData);
       throw new Error(
         `Failed to fetch playlist tracks: ${
-          errorData.error.message || "Unknown error"
+          errorData.error?.message || "Unknown error"
         }`
       );
     }
@@ -305,11 +328,21 @@ export async function getArtistTopTracks(
   return data.tracks;
 }
 
-export async function processPlaylistData(playlistId: any, accessToken: any) {
+export async function processPlaylistData(
+  playlistId: any,
+  accessToken: any,
+  market: string = "ES"
+) {
   // Verificar si ya existe la playlist en la base de datos
   try {
     // Primero intentamos obtener la playlist de la base de datos
-    const response = await fetch(`/api/playlists/spotify/${playlistId}`);
+    const baseUrl =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const response = await spotifyFetch(
+      `${baseUrl}/api/playlists/spotify/${playlistId}`
+    );
 
     if (response.ok) {
       console.log(
@@ -329,7 +362,7 @@ export async function processPlaylistData(playlistId: any, accessToken: any) {
   const playlistData = await getPlaylistData(playlistId, accessToken);
   const playlistTracks = await getPlaylistTracks(playlistId, accessToken);
 
-  const artistsMap = {};
+  const artistsMap: any = {};
 
   playlistTracks.forEach((item: any) => {
     if (!item.track) return; // Skip local tracks or tracks without data
@@ -360,31 +393,41 @@ export async function processPlaylistData(playlistId: any, accessToken: any) {
   const artists = Object.values(artistsMap);
 
   // Fetch artist images (only once per artist)
-  const artistIds = artists.map((artist) => artist.id).join(",");
-  if (artistIds) {
-    try {
-      const artistDetailsResponse = await spotifyFetch(
-        `https://api.spotify.com/v1/artists?ids=${artistIds}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+  const artistChunks = [];
+  for (let i = 0; i < artists.length; i += 50) {
+    artistChunks.push(artists.slice(i, i + 50));
+  }
 
-      if (artistDetailsResponse.ok) {
-        const artistDetailsData = await artistDetailsResponse.json();
-        artistDetailsData.artists.forEach((artistDetail) => {
-          const artist = artists.find((a) => a.id === artistDetail.id);
-          if (artist) {
-            artist.image = artistDetail.images[0]?.url || null;
+  // Procesar cada grupo por separado
+  for (const chunk of artistChunks) {
+    const artistIds = artists.map((artist: any) => artist.id).join(",");
+    if (artistIds) {
+      try {
+        const artistDetailsResponse = await spotifyFetch(
+          `https://api.spotify.com/v1/artists?ids=${artistIds}?market=${market}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
           }
-        });
-      } else {
-        console.warn("Failed to fetch artist details, using default images.");
+        );
+
+        if (artistDetailsResponse.ok) {
+          const artistDetailsData = await artistDetailsResponse.json();
+          artistDetailsData.artists.forEach((artistDetail: any) => {
+            const artist: any = artists.find(
+              (a: any) => a.id === artistDetail.id
+            );
+            if (artist) {
+              artist.image = artistDetail.images[0]?.url || null;
+            }
+          });
+        } else {
+          console.warn("Failed to fetch artist details, using default images.");
+        }
+      } catch (error) {
+        console.warn("Error fetching artist details:", error);
       }
-    } catch (error) {
-      console.warn("Error fetching artist details:", error);
     }
   }
 

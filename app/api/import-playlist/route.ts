@@ -11,6 +11,39 @@ import {
   getOrCreateTierlist,
 } from "@/lib/db"
 
+// Función para renovar el token de acceso
+async function refreshAccessToken(refreshToken: any) {
+  try {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`,
+        ).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    })
+
+    const refreshedTokens = await response.json()
+
+    if (!response.ok) {
+      throw refreshedTokens
+    }
+
+    return {
+      accessToken: refreshedTokens.access_token,
+      refreshToken: refreshedTokens.refresh_token ?? refreshToken,
+    }
+  } catch (error) {
+    console.error("Error refreshing access token", error)
+    throw new Error("Failed to refresh access token")
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -32,9 +65,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    // Obtener datos de Spotify
-    console.log("Obteniendo datos de playlist desde Spotify")
-    const playlistData = await processPlaylistData(playlistId, session.accessToken)
+    // Intentar procesar la playlist con el token actual
+    let accessToken = session.accessToken
+    let playlistData
+
+    try {
+      // Obtener datos de Spotify
+      console.log("Obteniendo datos de playlist desde Spotify")
+      playlistData = await processPlaylistData(playlistId, accessToken)
+    } catch (error: any) {
+      // Si el token ha expirado, intentar renovarlo
+      if (
+        error.message &&
+        (error.message.includes("access token expired") ||
+          error.message.includes("The access token expired") ||
+          error.message.includes("invalid_token"))
+      ) {
+        console.log("Token expirado, intentando renovar...")
+
+        if (!session.refreshToken) {
+          return NextResponse.json(
+            {
+              error:
+                "El token de acceso ha expirado y no se puede renovar automáticamente. Por favor, inicie sesión de nuevo.",
+            },
+            { status: 401 },
+          )
+        }
+
+        try {
+          // Renovar el token
+          const tokens = await refreshAccessToken(session.refreshToken)
+          accessToken = tokens.accessToken
+
+          // Intentar de nuevo con el nuevo token
+          console.log("Token renovado, intentando de nuevo...")
+          playlistData = await processPlaylistData(playlistId, accessToken)
+        } catch (refreshError) {
+          console.error("Error al renovar el token:", refreshError)
+          return NextResponse.json(
+            {
+              error: "No se pudo renovar el token de acceso. Por favor, inicie sesión de nuevo.",
+            },
+            { status: 401 },
+          )
+        }
+      } else {
+        // Si es otro tipo de error, propagarlo
+        throw error
+      }
+    }
 
     // Crear o actualizar playlist base (siempre pública)
     const playlist = await getOrCreatePlaylist({
@@ -89,4 +169,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-

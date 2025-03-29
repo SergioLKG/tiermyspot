@@ -32,7 +32,7 @@ export async function GET() {
           spotifyApiStatus = "Conectado correctamente"
 
           // Verificar que podemos hacer una solicitud a la API
-          const apiResponse = await fetch("https://api.spotify.com/v1/browse/new-releases", {
+          const apiResponse = await fetch("https://api.spotify.com/v1/browse/new-releases?market=ES", {
             headers: {
               Authorization: `Bearer ${tokenData.access_token}`,
             },
