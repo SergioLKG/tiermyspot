@@ -377,13 +377,13 @@ export async function processPlaylistData(
   const playlistTracks = await getPlaylistTracks(playlistId, accessToken);
 
   const artistsMap: any = {};
-  console.log("playlistTracks", playlistTracks);
   playlistTracks.forEach((item: any) => {
+    console.log("playlistTracks", item.track.album);
 
     if (!item.track) return; // Skip local tracks or tracks without data
 
     const artist = item.track.artists[0]; // Use the first artist
-    const image = item.track.album[0].images[0].url; // Use the first artist
+    const image = item.track.album.images[0].url; // Use the first artist
     if (!artist) return;
 
     if (!artistsMap[artist.id]) {
