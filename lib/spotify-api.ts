@@ -276,7 +276,7 @@ export async function getPlaylistTracks(
   }
 
   let tracks: any[] = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&limit=50&fields=items(track(id,name,artists(id,name,href),images(url))),next`;
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&fields=items(track(id,name,artists(id,name,href),images(url))),next`;
 
   while (url) {
     const response = await spotifyFetch(url, {
