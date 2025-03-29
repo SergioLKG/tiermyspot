@@ -155,7 +155,6 @@ export async function getOrCreateUser(userData: { email: string; name?: string; 
 }
 
 export async function getPlaylistBySpotifyId(spotifyId: string) {
-  console.log("entra a getPlaylistBySpotifyId");
   const db = getDbConnection()
   const result = await db.select().from(playlists).where(sql`${playlists.spotifyId} = ${spotifyId}`)
   return safeSerialize(result[0])

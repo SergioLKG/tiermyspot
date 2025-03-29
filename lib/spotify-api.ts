@@ -338,6 +338,7 @@ export async function processPlaylistData(
       );
 
       clearTimeout(timeoutId);
+      console.log("response", response);
 
       if (response.ok) {
         const existsData = await response.json();
