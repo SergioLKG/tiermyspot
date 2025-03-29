@@ -8,6 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+  console.log("entra a exists");
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user?.email) {

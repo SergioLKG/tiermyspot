@@ -327,6 +327,7 @@ export async function processPlaylistData(
     // Añadir un timeout a la solicitud para evitar que se quede esperando indefinidamente
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
+    console.log("antes del fetch");
 
     try {
       const response = await spotifyFetch(
