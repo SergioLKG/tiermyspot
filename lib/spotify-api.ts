@@ -143,7 +143,8 @@ async function getPlaylistData(
 async function spotifyFetch(
   url: string,
   options: RequestInit = {},
-  maxRetries: number = 3
+  maxRetries: number = 3,
+  delay = 1000
 ): Promise<Response> {
   let retries = 0;
 
@@ -161,11 +162,11 @@ async function spotifyFetch(
         // Rate limiting
         const retryAfter = response.headers.get("Retry-After");
         const waitTime = retryAfter
-          ? parseInt(retryAfter, 10) * 1000
-          : Math.pow(2, retries) * 1000;
+          ? parseInt(retryAfter, 10) * delay
+          : Math.pow(2, retries) * delay;
 
         console.warn(
-          `Spotify API Rate Limited. Waiting ${waitTime / 1000} seconds.`
+          `Spotify API Rate Limited. Waiting ${waitTime / delay} seconds.`
         );
         await wait(waitTime);
         retries++;
@@ -214,7 +215,7 @@ async function spotifyFetch(
       }
 
       // Backoff exponencial
-      await wait(Math.pow(2, retries) * 1000);
+      await wait(Math.pow(2, retries) * delay);
       retries++;
     }
   }
@@ -347,31 +348,31 @@ export async function processPlaylistData(
 
     try {
       const response = await spotifyFetch(
-        `${baseUrl}/api/playlists/spotify/${playlistId}`,
+        `${baseUrl}/api/playlists/exists/${playlistId}`,
         {
           signal: controller.signal,
-          headers: {
-            // Asegurarse de que se envía el token de autorización
-            ...(typeof window !== "undefined" &&
-            window.localStorage.getItem("next-auth.session-token")
-              ? {
-                  Authorization: `Bearer ${window.localStorage.getItem(
-                    "next-auth.session-token"
-                  )}`,
-                }
-              : {}),
-          },
         }
       );
 
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        console.log(
-          "Playlist encontrada en la base de datos, usando datos existentes"
-        );
-        const existingData = await response.json();
-        return existingData;
+        const existsData = await response.json();
+
+        // Si la playlist existe, obtener los datos completos
+        if (existsData.exists) {
+          console.log(
+            "Playlist encontrada en la base de datos, obteniendo datos completos"
+          );
+          const fullDataResponse = await fetch(
+            `${baseUrl}/api/playlists/spotify/${playlistId}`
+          );
+
+          if (fullDataResponse.ok) {
+            const existingData = await fullDataResponse.json();
+            return existingData;
+          }
+        }
       }
     } catch (fetchError) {
       // Si hay un error de timeout o cualquier otro error de fetch, continuamos con la importación
