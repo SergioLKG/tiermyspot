@@ -340,16 +340,47 @@ export async function processPlaylistData(
       typeof window !== "undefined"
         ? window.location.origin
         : process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const response = await spotifyFetch(
-      `${baseUrl}/api/playlists/spotify/${playlistId}`
-    );
 
-    if (response.ok) {
-      console.log(
-        "Playlist encontrada en la base de datos, usando datos existentes"
+    // Añadir un timeout a la solicitud para evitar que se quede esperando indefinidamente
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
+
+    try {
+      const response = await spotifyFetch(
+        `${baseUrl}/api/playlists/spotify/${playlistId}`,
+        {
+          signal: controller.signal,
+          headers: {
+            // Asegurarse de que se envía el token de autorización
+            ...(typeof window !== "undefined" &&
+            window.localStorage.getItem("next-auth.session-token")
+              ? {
+                  Authorization: `Bearer ${window.localStorage.getItem(
+                    "next-auth.session-token"
+                  )}`,
+                }
+              : {}),
+          },
+        }
       );
-      const existingData = await response.json();
-      return existingData;
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        console.log(
+          "Playlist encontrada en la base de datos, usando datos existentes"
+        );
+        const existingData = await response.json();
+        return existingData;
+      }
+    } catch (fetchError) {
+      // Si hay un error de timeout o cualquier otro error de fetch, continuamos con la importación
+      console.log(
+        "Error al verificar playlist en base de datos (timeout o error de red), continuando con importación:",
+        fetchError
+      );
+    } finally {
+      clearTimeout(timeoutId);
     }
   } catch (error) {
     console.log(
