@@ -52,16 +52,6 @@ export const artists = pgTable("artists", {
   image: text("image"),
 })
 
-export const tracks = pgTable("tracks", {
-  id: serial("id").primaryKey(),
-  spotifyId: text("spotify_id").notNull().unique(),
-  name: text("name").notNull(),
-  previewUrl: text("preview_url"),
-  albumName: text("album_name"),
-  albumImage: text("album_image"),
-  artistId: integer("artist_id").notNull(),
-})
-
 export const tierlists = pgTable("tierlists", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -84,7 +74,7 @@ export const groupTierlists = pgTable("group_tierlists", {
 })
 
 // Función auxiliar para manejar la serialización de objetos
-function safeSerialize(obj) {
+function safeSerialize(obj:any):any {
   if (!obj) return obj
 
   // Si es un array, aplicar a cada elemento
@@ -270,13 +260,8 @@ export async function getPlaylistArtists(playlistId: number) {
     return []
   }
 
-  const spotifyId = playlistData[0].spotifyId
-
-  // Ahora, necesitamos encontrar los artistas que están asociados a esta playlist
-  // Esto implica buscar en la tabla de tracks
-
-  // Primero, obtenemos todos los artistas que tienen tracks
-  const artistsWithTracks = await db
+  // Ahora, obtenemos todos los artistas
+  const artistsData = await db
     .select({
       id: artists.id,
       spotifyId: artists.spotifyId,
@@ -284,16 +269,8 @@ export async function getPlaylistArtists(playlistId: number) {
       image: artists.image,
     })
     .from(artists)
-    .where(sql`EXISTS (SELECT 1 FROM tracks WHERE tracks.artist_id = ${artists.id})`)
 
-  // Ahora, para cada artista, verificamos si tiene tracks asociados a esta playlist
-  // Esto es una simplificación, ya que no tenemos una relación directa entre playlists y tracks
-  // En una implementación real, necesitaríamos una tabla de relación
-
-  // Por ahora, asumiremos que todos los artistas con tracks están asociados a todas las playlists
-  // Esto es una solución temporal hasta que implementemos una relación adecuada
-
-  return safeSerialize(artistsWithTracks)
+  return safeSerialize(artistsData)
 }
 
 export async function getArtistBySpotifyId(spotifyId: string) {
@@ -332,48 +309,6 @@ export async function getOrCreateArtist(artistData: { spotifyId: string; name: s
   }
 
   return artist
-}
-
-export async function getTrackBySpotifyId(spotifyId: string) {
-  const db = getDbConnection()
-  const result = await db.select().from(tracks).where(sql`${tracks.spotifyId} = ${spotifyId}`)
-  return safeSerialize(result[0])
-}
-
-export async function createTrack(trackData: {
-  spotifyId: string
-  name: string
-  previewUrl?: string
-  albumName?: string
-  albumImage?: string
-  artistId: number
-}) {
-  const db = getDbConnection()
-  const result = await db.insert(tracks).values(trackData).returning()
-  return safeSerialize(result[0])
-}
-
-export async function getOrCreateTrack(trackData: {
-  spotifyId: string
-  name: string
-  previewUrl?: string
-  albumName?: string
-  albumImage?: string
-  artistId: number
-}) {
-  let track = await getTrackBySpotifyId(trackData.spotifyId)
-
-  if (!track) {
-    track = await createTrack(trackData)
-  }
-
-  return track
-}
-
-export async function getArtistTracks(artistId: number) {
-  const db = getDbConnection()
-  const result = await db.select().from(tracks).where(sql`${tracks.artistId} = ${artistId}`)
-  return safeSerialize(result)
 }
 
 // Nuevas funciones para el sistema de tierlists
@@ -628,19 +563,9 @@ export async function getFullPlaylistData(playlistId: number) {
   const playlist = playlistData[0]
   const artistsData = await getPlaylistArtists(playlistId)
 
-  const artists = []
-
-  for (const artist of artistsData) {
-    const tracksData = await getArtistTracks(artist.id)
-    artists.push({
-      ...artist,
-      tracks: tracksData,
-    })
-  }
-
   return {
     ...playlist,
-    artists,
+    artists: artistsData,
   }
 }
 
@@ -658,21 +583,9 @@ export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
     // Obtener artistas de la playlist
     const artistsData = await getPlaylistArtists(playlist.id)
 
-    const artistsWithTracks = []
-
-    // Obtener pistas para cada artista
-    for (const artist of artistsData) {
-      const tracksData = await getArtistTracks(artist.id)
-
-      artistsWithTracks.push({
-        ...artist,
-        tracks: safeSerialize(tracksData),
-      })
-    }
-
     return {
       ...playlist,
-      artists: artistsWithTracks,
+      artists: artistsData,
     }
   } catch (error) {
     console.error("Error al obtener datos completos de playlist por Spotify ID:", error)

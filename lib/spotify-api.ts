@@ -110,7 +110,7 @@ async function getPlaylistData(
 
   console.log("Obteniendo datos de playlist desde Spotify API");
   const response = await spotifyFetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}?market=${market}`,
+    `https://api.spotify.com/v1/playlists/${playlistId}?market=${market}&fields=id,name,description,images`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -276,7 +276,7 @@ export async function getPlaylistTracks(
   }
 
   let tracks: any[] = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}`;
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&fields=items(track(id,name,artists(id,name))),next`;
 
   while (url) {
     const response = await spotifyFetch(url, {
@@ -407,19 +407,8 @@ export async function processPlaylistData(
         id: artist.id,
         spotifyId: artist.id,
         name: artist.name,
-        image: null, // Will be updated later
-        tracks: [],
+        image: artist.image,
       };
-    }
-
-    if (artistsMap[artist.id].tracks.length < 3) {
-      artistsMap[artist.id].tracks.push({
-        id: item.track.id,
-        name: item.track.name,
-        previewUrl: item.track.preview_url,
-        albumName: item.track.album.name,
-        albumImage: item.track.album.images[0]?.url,
-      });
     }
   });
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,22 +14,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = null, onPlay, onNext, onPrev, children }) {
-  const [hasPreviewUrl, setHasPreviewUrl] = useState(false)
+export function ArtistCard({ artist, children }) {
   const [isEmbedOpen, setIsEmbedOpen] = useState(false)
-
-  // Verificar si el artista tiene al menos una pista con previewUrl
-  useEffect(() => {
-    if (artist.tracks && artist.tracks.length > 0) {
-      const hasPreview = artist.tracks.some((track:any) => track.previewUrl)
-      setHasPreviewUrl(hasPreview)
-    }
-  }, [artist])
-
-  const currentTrack = artist.tracks && artist.tracks.length > 0 ? artist.tracks[currentTrackIndex] : null
-
-  const isPlaying = playingTrackId === `${artist.id}_${currentTrack?.id}`
-  const currentTrackHasPreview = currentTrack?.previewUrl ? true : false
 
   // Asegurarnos de que la imagen del artista sea válida
   const artistImage =
@@ -62,7 +48,7 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
                     <Music className="h-5 w-5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-xl md:max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>{artist.name}</DialogTitle>
                     <DialogDescription>Escucha las canciones más populares de este artista</DialogDescription>
@@ -73,7 +59,7 @@ export function ArtistCard({ artist, currentTrackIndex = 0, playingTrackId = nul
                         style={{ borderRadius: "12px" }}
                         src={spotifyEmbedUrl}
                         width="100%"
-                        height="352"
+                        height="450"
                         frameBorder="0"
                         allowFullScreen
                         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
