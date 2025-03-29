@@ -1,8 +1,14 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const url = new URL(request.url);
+    const password = url.searchParams.get("password");
+    if (password !== process.env.NEXTAUTH_SECRET) {
+      return NextResponse.json({ success: false, message: "Contraseña incorrecta" }, { status: 401 });
+    }
+
     const sql = neon(process.env.POSTGRES_DATABASE_URL!)
 
     // Ejecutar el script de migración
