@@ -276,8 +276,8 @@ export async function getPlaylistTracks(
   }
 
   let tracks: any[] = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&limit=50&fields=items(track(id,name,images,artists(id,name,href))),next`;
-
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?market=${market}&limit=50&fields=items(track(id,name,images(url),artists(id,name,href))),next`;
+console.log(url);
   while (url) {
     const response = await spotifyFetch(url, {
       headers: {
@@ -400,8 +400,6 @@ export async function processPlaylistData(
     if (!item.track) return; // Skip local tracks or tracks without data
 
     const artist = item.track.artists[0]; // Use the first artist
-    console.log("ITEM PLAYLIST TRACKS");
-    console.log(item);
     const image = item.track.images[0].url; // Use the first image
     if (!artist) return;
 
