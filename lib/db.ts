@@ -263,29 +263,45 @@ export async function getOrCreateUserPlaylist(userPlaylistData: {
   isPrivate?: boolean
   privateName?: string
 }) {
-  // Primero intentamos encontrar una userPlaylist existente que coincida con los criterios
   const db = getDbConnection()
-  let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${userPlaylistData.playlistId}`)
 
-  if (userPlaylistData.privateName) {
-    query = query.where(sql`${userPlaylists.privateName} = ${userPlaylistData.privateName}`)
-  } else {
-    query = query.where(sql`${userPlaylists.privateName} IS NULL`)
-  }
+  // Primero buscamos una userPlaylist existente que coincida exactamente con los criterios
+  let query = db
+    .select()
+    .from(userPlaylists)
+    .where(
+      sql`${userPlaylists.userId} = ${userPlaylistData.userId} AND ${userPlaylists.playlistId} = ${userPlaylistData.playlistId}`,
+    )
 
   if (userPlaylistData.isPrivate) {
-    query = query.where(sql`${userPlaylists.isPrivate} = ${userPlaylistData.isPrivate}`)
+    if (userPlaylistData.privateName) {
+      query = query.where(sql`${userPlaylists.privateName} = ${userPlaylistData.privateName}`)
+    } else {
+      query = query.where(sql`${userPlaylists.privateName} IS NULL`)
+    }
+  } else {
+    query = query.where(sql`${userPlaylists.isPrivate} = false`)
   }
 
-  const existingUserPlaylists = await query
-  let userPlaylist = existingUserPlaylists[0]
+  const existingUserPlaylists = await query.execute()
 
-  // Si no existe, la creamos
-  if (!userPlaylist) {
-    userPlaylist = await createUserPlaylist(userPlaylistData)
+  // Si encontramos una coincidencia exacta, la devolvemos
+  if (existingUserPlaylists.length > 0) {
+    return safeSerialize(existingUserPlaylists[0])
   }
 
-  return safeSerialize(userPlaylist)
+  // Si no encontramos una coincidencia exacta, creamos una nueva userPlaylist
+  const result = await db
+    .insert(userPlaylists)
+    .values({
+      userId: userPlaylistData.userId,
+      playlistId: userPlaylistData.playlistId,
+      isPrivate: userPlaylistData.isPrivate || false,
+      privateName: userPlaylistData.privateName,
+    })
+    .returning()
+
+  return safeSerialize(result[0])
 }
 
 // Modificada para trabajar con isHidden en tierlists en lugar de userPlaylists
@@ -303,50 +319,71 @@ export async function hideUserTierlist(userId: number, userPlaylistId: number) {
 export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
 
-  // Primero obtenemos las tierlists del usuario
-  let tierlistsQuery = db
+  // Obtenemos todas las userPlaylists del usuario
+  const userPlaylistsResult = await db
     .select({
-      id: tierlists.id,
-      userPlaylistId: tierlists.userPlaylistId,
-      isHidden: tierlists.isHidden,
+      id: userPlaylists.id,
+      playlistId: userPlaylists.playlistId,
+      isPrivate: userPlaylists.isPrivate,
+      privateName: userPlaylists.privateName,
     })
-    .from(tierlists)
-    .where(sql`${tierlists.userId} = ${userId}`)
+    .from(userPlaylists)
+    .where(sql`${userPlaylists.userId} = ${userId}`)
+    .execute()
 
-  if (!includeHidden) {
-    tierlistsQuery = tierlistsQuery.where(sql`${tierlists.isHidden} = false`)
-  }
-
-  const userTierlists = await tierlistsQuery
-
-  if (userTierlists.length === 0) {
+  if (userPlaylistsResult.length === 0) {
     return []
   }
 
-  // Obtenemos los IDs de userPlaylists
-  const userPlaylistIds = userTierlists.map((t) => t.userPlaylistId)
+  // Para cada userPlaylist, verificamos si el usuario tiene una tierlist
+  const result = []
 
-  // Ahora obtenemos los detalles completos de las playlists
-  const result = await db
-    .select({
-      id: playlists.id,
-      spotifyId: playlists.spotifyId,
-      name: playlists.name,
-      description: playlists.description,
-      image: playlists.image,
-      artistIds: playlists.artistIds,
-      isPrivate: userPlaylists.isPrivate,
-      privateName: userPlaylists.privateName,
-      userPlaylistId: userPlaylists.id,
-      tierlistId: tierlists.id,
-      isHidden: tierlists.isHidden,
-      createdAt: playlists.createdAt,
-    })
-    .from(userPlaylists)
-    .innerJoin(playlists, sql`${userPlaylists.playlistId} = ${playlists.id}`)
-    .innerJoin(tierlists, sql`${tierlists.userPlaylistId} = ${userPlaylists.id}`)
-    .where(sql`${tierlists.userId} = ${userId} AND ${userPlaylists.id} IN (${userPlaylistIds})`)
-    .execute()
+  for (const userPlaylist of userPlaylistsResult) {
+    // Obtener la tierlist del usuario para esta userPlaylist
+    const tierlist = await db
+      .select({
+        id: tierlists.id,
+        isHidden: tierlists.isHidden,
+      })
+      .from(tierlists)
+      .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylist.id}`)
+      .execute()
+
+    // Si no hay tierlist o está oculta y no queremos incluir ocultas, continuamos
+    if (tierlist.length === 0) {
+      // Si no hay tierlist, creamos una automáticamente
+      await getOrCreateTierlist({
+        userId,
+        userPlaylistId: userPlaylist.id,
+      })
+    } else if (!includeHidden && tierlist[0].isHidden) {
+      continue
+    }
+
+    // Obtener los detalles de la playlist
+    const playlistData = await db
+      .select()
+      .from(playlists)
+      .where(sql`${playlists.id} = ${userPlaylist.playlistId}`)
+      .execute()
+
+    if (playlistData.length > 0) {
+      result.push({
+        id: playlistData[0].id,
+        spotifyId: playlistData[0].spotifyId,
+        name: playlistData[0].name,
+        description: playlistData[0].description,
+        image: playlistData[0].image,
+        artistIds: playlistData[0].artistIds,
+        isPrivate: userPlaylist.isPrivate,
+        privateName: userPlaylist.privateName,
+        userPlaylistId: userPlaylist.id,
+        tierlistId: tierlist.length > 0 ? tierlist[0].id : null,
+        isHidden: tierlist.length > 0 ? tierlist[0].isHidden : false,
+        createdAt: playlistData[0].createdAt,
+      })
+    }
+  }
 
   return safeSerialize(result)
 }
@@ -471,7 +508,17 @@ export async function updateTierlistRating(
   })
 
   // Actualizar los ratings
-  const ratings = tierlist.ratings || {}
+  let ratings = tierlist.ratings || {}
+
+  // Asegurarnos de que ratings es un objeto y no un string
+  if (typeof ratings === "string") {
+    try {
+      ratings = JSON.parse(ratings)
+    } catch (e) {
+      console.error("Error parsing ratings:", e)
+      ratings = {}
+    }
+  }
 
   if (tierId === null) {
     // Eliminar el rating
@@ -763,10 +810,6 @@ export async function migrateDatabase() {
       DROP TABLE IF EXISTS artists CASCADE;
       DROP TABLE IF EXISTS playlists CASCADE;
       DROP TABLE IF EXISTS users CASCADE;
-    `)
-
-    // Crear tabla de usuarios
-    await db.execute(sql`
       CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
@@ -775,10 +818,6 @@ export async function migrateDatabase() {
         spotify_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `)
-
-    // Crear tabla de playlists
-    await db.execute(sql`
       CREATE TABLE playlists (
         id SERIAL PRIMARY KEY,
         spotify_id TEXT NOT NULL,
@@ -789,20 +828,12 @@ export async function migrateDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `)
-
-    // Crear tabla de artistas
-    await db.execute(sql`
       CREATE TABLE artists (
         id SERIAL PRIMARY KEY,
         spotify_id TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         image TEXT
       )
-    `)
-
-    // Crear tabla de relación usuario-playlist
-    await db.execute(sql`
       CREATE TABLE user_playlists (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
@@ -813,10 +844,6 @@ export async function migrateDatabase() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
       )
-    `)
-
-    // Crear tabla de tierlists
-    await db.execute(sql`
       CREATE TABLE tierlists (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
@@ -828,10 +855,6 @@ export async function migrateDatabase() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (user_playlist_id) REFERENCES user_playlists(id) ON DELETE CASCADE
       )
-    `)
-
-    // Crear tabla de tierlists grupales
-    await db.execute(sql`
       CREATE TABLE group_tierlists (
         id SERIAL PRIMARY KEY,
         playlist_id INTEGER NOT NULL,
@@ -842,10 +865,6 @@ export async function migrateDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
       )
-    `)
-
-    // Crear índices para mejorar el rendimiento
-    await db.execute(sql`
       CREATE INDEX idx_users_email ON users(email);
       CREATE INDEX idx_playlists_spotify_id ON playlists(spotify_id);
       CREATE INDEX idx_artists_spotify_id ON artists(spotify_id);
@@ -857,7 +876,7 @@ export async function migrateDatabase() {
     `)
 
     return { success: true, message: "Base de datos creada correctamente desde cero" }
-  } catch (error) {
+  } catch (error:any) {
     console.error("Error durante la creación de la base de datos:", error)
     return { success: false, error: error.message }
   }
@@ -882,12 +901,7 @@ export async function getPlaylistRankings(playlistId: number) {
 
     // Ahora obtenemos todas las tierlists para estas userPlaylists
     const tierlistsResult = await db
-      .select({
-        id: tierlists.id,
-        userId: tierlists.userId,
-        userPlaylistId: tierlists.userPlaylistId,
-        ratings: tierlists.ratings,
-      })
+      .select()
       .from(tierlists)
       .where(sql`${tierlists.userPlaylistId} IN (${userPlaylistIds})`)
       .execute()
@@ -897,12 +911,17 @@ export async function getPlaylistRankings(playlistId: number) {
 
     tierlistsResult.forEach((tierlist) => {
       if (tierlist && tierlist.ratings) {
-        Object.entries(tierlist.ratings).forEach(([artistId, tierId]) => {
-          rankings.push({
-            userId: tierlist.userId,
-            artistId: Number.parseInt(artistId),
-            tierId: tierId,
-          })
+        // Asegurarnos de que ratings es un objeto y no un string
+        const ratingsObj = typeof tierlist.ratings === "string" ? JSON.parse(tierlist.ratings) : tierlist.ratings
+
+        Object.entries(ratingsObj).forEach(([artistId, tierId]) => {
+          if (typeof tierId === "string") {
+            rankings.push({
+              userId: tierlist.userId,
+              artistId: Number.parseInt(artistId),
+              tierId: tierId,
+            })
+          }
         })
       }
     })
@@ -918,25 +937,40 @@ export async function hideUserPlaylist(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
-    // Find the userPlaylist
-    const userPlaylist = await db
+    // Encontrar la userPlaylist
+    const userPlaylistResult = await db
       .select()
       .from(userPlaylists)
       .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
       .execute()
 
-    if (!userPlaylist || userPlaylist.length === 0) {
+    if (!userPlaylistResult || userPlaylistResult.length === 0) {
       console.warn(`No user playlist found for user ${userId} and playlist ${playlistId}`)
-      return
+      return null
     }
 
-    // Delete the userPlaylist
-    await db
-      .delete(userPlaylists)
-      .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+    const userPlaylist = userPlaylistResult[0]
+
+    // Encontrar la tierlist asociada
+    const tierlistResult = await db
+      .select()
+      .from(tierlists)
+      .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylist.id}`)
       .execute()
 
-    console.log(`User playlist for user ${userId} and playlist ${playlistId} has been deleted`)
+    if (tierlistResult && tierlistResult.length > 0) {
+      // Ocultar la tierlist en lugar de eliminar la userPlaylist
+      const result = await db
+        .update(tierlists)
+        .set({ isHidden: true })
+        .where(sql`${tierlists.id} = ${tierlistResult[0].id}`)
+        .returning()
+
+      return safeSerialize(result[0])
+    } else {
+      console.warn(`No tierlist found for user ${userId} and userPlaylist ${userPlaylist.id}`)
+      return null
+    }
   } catch (error) {
     console.error("Error al ocultar la playlist:", error)
     throw error

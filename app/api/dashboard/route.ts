@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Corregir la función POST para manejar correctamente la acción de ocultar
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "hide") {
-      await hideUserPlaylist(user.id, Number.parseInt(playlistId))
-      return NextResponse.json({ success: true })
+      const result = await hideUserPlaylist(user.id, Number.parseInt(playlistId))
+      return NextResponse.json({ success: !!result })
     }
 
     return NextResponse.json({ error: "Acción no válida" }, { status: 400 })
