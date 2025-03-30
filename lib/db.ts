@@ -33,6 +33,7 @@ export const playlists = pgTable("playlists", {
   name: text("name").notNull(),
   description: text("description"),
   image: text("image"),
+  artistIds: jsonb("artist_ids").default([]), // Nueva columna para almacenar los IDs de los artistas
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 })
@@ -42,6 +43,8 @@ export const userPlaylists = pgTable("user_playlists", {
   userId: integer("user_id").notNull(),
   playlistId: integer("playlist_id").notNull(),
   isHidden: boolean("is_hidden").default(false),
+  isPrivate: boolean("is_private").default(false), // Movido desde tierlists
+  privateName: text("private_name"), // Movido desde tierlists
   createdAt: timestamp("created_at").defaultNow(),
 })
 
@@ -55,9 +58,7 @@ export const artists = pgTable("artists", {
 export const tierlists = pgTable("tierlists", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  playlistId: integer("playlist_id").notNull(),
-  isPrivate: boolean("is_private").default(false),
-  privateName: text("private_name"),
+  userPlaylistId: integer("user_playlist_id").notNull(), // Cambiado de playlistId a userPlaylistId
   ratings: jsonb("ratings").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -71,13 +72,6 @@ export const groupTierlists = pgTable("group_tierlists", {
   userCount: integer("user_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-})
-
-// Añadir esta definición de tabla
-export const playlistArtists = pgTable("playlist_artists", {
-  id: serial("id").primaryKey(),
-  playlistId: integer("playlist_id").notNull(),
-  artistId: integer("artist_id").notNull(),
 })
 
 // Función auxiliar para manejar la serialización de objetos
@@ -172,9 +166,32 @@ export async function createPlaylist(playlistData: {
   name: string
   description?: string
   image?: string
+  artistIds?: string[]
 }) {
   const db = getDbConnection()
-  const result = await db.insert(playlists).values(playlistData).returning()
+  const result = await db
+    .insert(playlists)
+    .values({
+      spotifyId: playlistData.spotifyId,
+      name: playlistData.name,
+      description: playlistData.description,
+      image: playlistData.image,
+      artistIds: playlistData.artistIds || [],
+    })
+    .returning()
+  return safeSerialize(result[0])
+}
+
+export async function updatePlaylistArtists(playlistId: number, artistIds: string[]) {
+  const db = getDbConnection()
+  const result = await db
+    .update(playlists)
+    .set({
+      artistIds: artistIds,
+      updatedAt: new Date(),
+    })
+    .where(sql`${playlists.id} = ${playlistId}`)
+    .returning()
   return safeSerialize(result[0])
 }
 
@@ -183,41 +200,92 @@ export async function getOrCreatePlaylist(playlistData: {
   name: string
   description?: string
   image?: string
+  artistIds?: string[]
 }) {
   let playlist = await getPlaylistBySpotifyId(playlistData.spotifyId)
 
   if (!playlist) {
     playlist = await createPlaylist(playlistData)
+  } else if (playlistData.artistIds && playlistData.artistIds.length > 0) {
+    // Verificar si hay nuevos artistas para actualizar
+    const currentArtistIds = playlist.artistIds || []
+    const newArtistIds = playlistData.artistIds.filter((id) => !currentArtistIds.includes(id))
+
+    if (newArtistIds.length > 0) {
+      // Actualizar la lista de artistas
+      const updatedArtistIds = [...currentArtistIds, ...newArtistIds]
+      playlist = await updatePlaylistArtists(playlist.id, updatedArtistIds)
+    }
   }
 
   return playlist
 }
 
-export async function addUserToPlaylist(userId: number, playlistId: number) {
+export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
-  // Verificar si ya existe la relación
-  const existing = await db
+  let query = db
     .select()
     .from(userPlaylists)
     .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
 
-  if (existing.length === 0) {
-    // Si no existe, crear una nueva relación con isHidden = false (visible)
-    const result = await db.insert(userPlaylists).values({ userId, playlistId, isHidden: false }).returning()
-    return safeSerialize(result[0])
+  if (privateName) {
+    query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
+  } else {
+    query = query.where(sql`${userPlaylists.privateName} IS NULL`)
   }
 
-  // Si estaba oculta, la hacemos visible de nuevo
-  if (existing[0].isHidden) {
+  const result = await query
+  return safeSerialize(result[0])
+}
+
+export async function createUserPlaylist(userPlaylistData: {
+  userId: number
+  playlistId: number
+  isHidden?: boolean
+  isPrivate?: boolean
+  privateName?: string
+}) {
+  const db = getDbConnection()
+  const result = await db
+    .insert(userPlaylists)
+    .values({
+      userId: userPlaylistData.userId,
+      playlistId: userPlaylistData.playlistId,
+      isHidden: userPlaylistData.isHidden || false,
+      isPrivate: userPlaylistData.isPrivate || false,
+      privateName: userPlaylistData.privateName,
+    })
+    .returning()
+  return safeSerialize(result[0])
+}
+
+export async function getOrCreateUserPlaylist(userPlaylistData: {
+  userId: number
+  playlistId: number
+  isHidden?: boolean
+  isPrivate?: boolean
+  privateName?: string
+}) {
+  let userPlaylist = await getUserPlaylist(
+    userPlaylistData.userId,
+    userPlaylistData.playlistId,
+    userPlaylistData.privateName,
+  )
+
+  if (!userPlaylist) {
+    userPlaylist = await createUserPlaylist(userPlaylistData)
+  } else if (userPlaylist.isHidden) {
+    // Si estaba oculta, la hacemos visible de nuevo
+    const db = getDbConnection()
     const result = await db
       .update(userPlaylists)
       .set({ isHidden: false })
-      .where(sql`${userPlaylists.id} = ${existing[0].id}`)
+      .where(sql`${userPlaylists.id} = ${userPlaylist.id}`)
       .returning()
-    return safeSerialize(result[0])
+    userPlaylist = safeSerialize(result[0])
   }
 
-  return safeSerialize(existing[0])
+  return userPlaylist
 }
 
 export async function hideUserPlaylist(userId: number, playlistId: number) {
@@ -239,7 +307,11 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
       name: playlists.name,
       description: playlists.description,
       image: playlists.image,
+      artistIds: playlists.artistIds,
       isHidden: userPlaylists.isHidden,
+      isPrivate: userPlaylists.isPrivate,
+      privateName: userPlaylists.privateName,
+      userPlaylistId: userPlaylists.id,
       createdAt: playlists.createdAt,
     })
     .from(userPlaylists)
@@ -254,41 +326,25 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
   return safeSerialize(result)
 }
 
-// Reemplazar la función getPlaylistArtists
 export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection()
 
-  // Obtener los artistas asociados a esta playlist específica
-  const result = await db
-    .select({
-      id: artists.id,
-      spotifyId: artists.spotifyId,
-      name: artists.name,
-      image: artists.image,
-    })
-    .from(playlistArtists)
-    .innerJoin(artists, sql`${playlistArtists.artistId} = ${artists.id}`)
-    .where(sql`${playlistArtists.playlistId} = ${playlistId}`)
+  // Primero obtenemos los IDs de artistas de la playlist
+  const playlistResult = await db
+    .select({ artistIds: playlists.artistIds })
+    .from(playlists)
+    .where(sql`${playlists.id} = ${playlistId}`)
+    .execute()
 
-  return safeSerialize(result)
-}
-
-// Añadir función para asociar un artista a una playlist
-export async function addArtistToPlaylist(playlistId: number, artistId: number) {
-  const db = getDbConnection()
-
-  // Verificar si ya existe la relación
-  const existing = await db
-    .select()
-    .from(playlistArtists)
-    .where(sql`${playlistArtists.playlistId} = ${playlistId} AND ${playlistArtists.artistId} = ${artistId}`)
-
-  if (existing.length === 0) {
-    const result = await db.insert(playlistArtists).values({ playlistId, artistId }).returning()
-    return safeSerialize(result[0])
+  if (!playlistResult.length || !playlistResult[0].artistIds || !playlistResult[0].artistIds.length) {
+    return []
   }
 
-  return safeSerialize(existing[0])
+  // Luego obtenemos los detalles de los artistas
+  const artistIds = playlistResult[0].artistIds
+  const result = await db.select().from(artists).where(sql`${artists.spotifyId} IN (${artistIds})`).execute()
+
+  return safeSerialize(result)
 }
 
 export async function getArtistBySpotifyId(spotifyId: string) {
@@ -331,41 +387,40 @@ export async function getOrCreateArtist(artistData: { spotifyId: string; name: s
 
 // Nuevas funciones para el sistema de tierlists
 
-export async function getTierlist(userId: number, playlistId: number, privateName?: string) {
+export async function getTierlist(userId: number, userPlaylistId: number) {
   const db = getDbConnection()
-  let query = db
+  const result = await db
     .select()
     .from(tierlists)
-    .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.playlistId} = ${playlistId}`)
+    .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylistId}`)
+    .execute()
 
-  if (privateName) {
-    query = query.where(sql`${tierlists.privateName} = ${privateName}`)
-  } else {
-    query = query.where(sql`${tierlists.privateName} IS NULL`)
-  }
-
-  const result = await query
   return safeSerialize(result[0])
 }
 
 export async function createTierlist(tierlistData: {
   userId: number
-  playlistId: number
-  isPrivate?: boolean
-  privateName?: string
+  userPlaylistId: number
+  ratings?: Record<string, string>
 }) {
   const db = getDbConnection()
-  const result = await db.insert(tierlists).values(tierlistData).returning()
+  const result = await db
+    .insert(tierlists)
+    .values({
+      userId: tierlistData.userId,
+      userPlaylistId: tierlistData.userPlaylistId,
+      ratings: tierlistData.ratings || {},
+    })
+    .returning()
   return safeSerialize(result[0])
 }
 
 export async function getOrCreateTierlist(tierlistData: {
   userId: number
-  playlistId: number
-  isPrivate?: boolean
-  privateName?: string
+  userPlaylistId: number
+  ratings?: Record<string, string>
 }) {
-  let tierlist = await getTierlist(tierlistData.userId, tierlistData.playlistId, tierlistData.privateName)
+  let tierlist = await getTierlist(tierlistData.userId, tierlistData.userPlaylistId)
 
   if (!tierlist) {
     tierlist = await createTierlist(tierlistData)
@@ -376,19 +431,16 @@ export async function getOrCreateTierlist(tierlistData: {
 
 export async function updateTierlistRating(
   userId: number,
-  playlistId: number,
+  userPlaylistId: number,
   artistId: number,
   tierId: string | null,
-  privateName?: string,
 ) {
   const db = getDbConnection()
 
   // Obtener o crear la tierlist
   const tierlist = await getOrCreateTierlist({
     userId,
-    playlistId,
-    isPrivate: !!privateName,
-    privateName,
+    userPlaylistId,
   })
 
   // Actualizar los ratings
@@ -412,8 +464,20 @@ export async function updateTierlistRating(
     .where(sql`${tierlists.id} = ${tierlist.id}`)
     .returning()
 
-  // Actualizar la tierlist grupal
-  await updateGroupTierlist(playlistId, privateName)
+  // Obtener la información de la playlist para actualizar la tierlist grupal
+  const userPlaylistInfo = await db
+    .select({
+      playlistId: userPlaylists.playlistId,
+      privateName: userPlaylists.privateName,
+    })
+    .from(userPlaylists)
+    .where(sql`${userPlaylists.id} = ${userPlaylistId}`)
+    .execute()
+
+  if (userPlaylistInfo.length > 0) {
+    // Actualizar la tierlist grupal
+    await updateGroupTierlist(userPlaylistInfo[0].playlistId, userPlaylistInfo[0].privateName)
+  }
 
   return safeSerialize(result[0])
 }
@@ -457,22 +521,37 @@ export async function getOrCreateGroupTierlist(groupTierlistData: {
 export async function updateGroupTierlist(playlistId: number, privateName?: string) {
   const db = getDbConnection()
 
-  // Obtener todas las tierlists para esta playlist
-  let query = db.select().from(tierlists).where(sql`${tierlists.playlistId} = ${playlistId}`)
+  // Obtener todas las userPlaylists para esta playlist
+  let userPlaylistsQuery = db
+    .select({ id: userPlaylists.id })
+    .from(userPlaylists)
+    .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
 
   if (privateName) {
-    query = query.where(sql`${tierlists.privateName} = ${privateName}`)
+    userPlaylistsQuery = userPlaylistsQuery.where(sql`${userPlaylists.privateName} = ${privateName}`)
   } else {
-    query = query.where(sql`${tierlists.privateName} IS NULL`)
+    userPlaylistsQuery = userPlaylistsQuery.where(sql`${userPlaylists.privateName} IS NULL`)
   }
 
-  const userTierlists = await query
+  const userPlaylistsResult = await userPlaylistsQuery.execute()
+  const userPlaylistIds = userPlaylistsResult.map((up) => up.id)
+
+  if (userPlaylistIds.length === 0) {
+    return null
+  }
+
+  // Obtener todas las tierlists para estas userPlaylists
+  const tierlistsResult = await db
+    .select()
+    .from(tierlists)
+    .where(sql`${tierlists.userPlaylistId} IN (${userPlaylistIds})`)
+    .execute()
 
   // Calcular los ratings agregados
   const aggregatedRatings = {}
   const uniqueUserIds = new Set()
 
-  userTierlists.forEach((tierlist) => {
+  tierlistsResult.forEach((tierlist) => {
     uniqueUserIds.add(tierlist.userId)
 
     // Procesar los ratings de esta tierlist
@@ -560,16 +639,6 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
   return safeSerialize(result[0])
 }
 
-export async function getUserTierlistsForPlaylist(userId: number, playlistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .select()
-    .from(tierlists)
-    .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.playlistId} = ${playlistId}`)
-
-  return safeSerialize(result)
-}
-
 export async function getFullPlaylistData(playlistId: number) {
   const db = getDbConnection()
   const playlistData = await db.select().from(playlists).where(sql`${playlists.id} = ${playlistId}`)
@@ -618,30 +687,6 @@ export async function getTierlists(userId: number) {
   return safeSerialize(result)
 }
 
-export async function getPlaylistRankings(playlistId: number) {
-  const db = getDbConnection()
-  const result = await db
-    .select({
-      userId: tierlists.userId,
-      artistId: sql<number>`CAST(jsonb_object_keys(tierlists.ratings) AS INTEGER)`,
-      tierId: sql<string>`(tierlists.ratings ->> jsonb_object_keys(tierlists.ratings))`,
-    })
-    .from(tierlists)
-    .where(sql`${tierlists.playlistId} = ${playlistId} AND tierlists.ratings IS NOT NULL`)
-    .execute()
-
-  // Transformar el resultado para que coincida con la estructura esperada
-  const rankings = result.flatMap((tierlist) => {
-    return Object.keys(tierlist).map((artistId) => ({
-      userId: tierlist.userId,
-      artistId: Number.parseInt(artistId),
-      tierId: tierlist[artistId],
-    }))
-  })
-
-  return safeSerialize(result)
-}
-
 export async function getPlaylistUserCount(playlistId: number): Promise<number> {
   try {
     const db = getDbConnection()
@@ -659,5 +704,154 @@ export async function getPlaylistUserCount(playlistId: number): Promise<number> 
   } catch (error) {
     console.error("Error al obtener el conteo de usuarios de la playlist:", error)
     return 0
+  }
+}
+
+// Función para migrar datos de la estructura antigua a la nueva
+export async function migrateDatabase() {
+  const db = getDbConnection()
+
+  try {
+    // 1. Verificar si la columna artist_ids ya existe en la tabla playlists
+    const checkColumn = await db.execute(sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'playlists' AND column_name = 'artist_ids'
+    `)
+
+    // Si la columna no existe, crearla
+    if (checkColumn.length === 0) {
+      await db.execute(sql`
+        ALTER TABLE playlists 
+        ADD COLUMN artist_ids JSONB DEFAULT '[]'
+      `)
+    }
+
+    // 2. Verificar si existen las columnas is_private y private_name en user_playlists
+    const checkPrivateColumns = await db.execute(sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'user_playlists' AND column_name IN ('is_private', 'private_name')
+    `)
+
+    // Si las columnas no existen, crearlas
+    if (checkPrivateColumns.length < 2) {
+      await db.execute(sql`
+        ALTER TABLE user_playlists 
+        ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS private_name TEXT
+      `)
+    }
+
+    // 3. Verificar si existe la columna user_playlist_id en tierlists
+    const checkUserPlaylistIdColumn = await db.execute(sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'tierlists' AND column_name = 'user_playlist_id'
+    `)
+
+    // Si la columna no existe, crearla
+    if (checkUserPlaylistIdColumn.length === 0) {
+      await db.execute(sql`
+        ALTER TABLE tierlists 
+        ADD COLUMN user_playlist_id INTEGER
+      `)
+
+      // Migrar datos de la relación playlist_id a user_playlist_id
+      await db.execute(sql`
+        UPDATE tierlists t
+        SET user_playlist_id = up.id
+        FROM user_playlists up
+        WHERE t.playlist_id = up.playlist_id AND t.user_id = up.user_id
+      `)
+    }
+
+    // 4. Migrar datos de is_private y private_name de tierlists a user_playlists
+    await db.execute(sql`
+      UPDATE user_playlists up
+      SET 
+        is_private = t.is_private,
+        private_name = t.private_name
+      FROM tierlists t
+      WHERE up.id = t.user_playlist_id AND (t.is_private = TRUE OR t.private_name IS NOT NULL)
+    `)
+
+    // 5. Migrar datos de playlist_artists a la columna artist_ids en playlists
+    // Verificar si existe la tabla playlist_artists
+    const checkPlaylistArtistsTable = await db.execute(sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'playlist_artists'
+    `)
+
+    if (checkPlaylistArtistsTable.length > 0) {
+      // Obtener todas las relaciones playlist-artista
+      const playlistArtistRelations = await db.execute(sql`
+        SELECT pa.playlist_id, a.spotify_id
+        FROM playlist_artists pa
+        JOIN artists a ON pa.artist_id = a.id
+      `)
+
+      // Agrupar por playlist_id
+      const playlistArtistMap = {}
+      playlistArtistRelations.forEach((relation) => {
+        if (!playlistArtistMap[relation.playlist_id]) {
+          playlistArtistMap[relation.playlist_id] = []
+        }
+        playlistArtistMap[relation.playlist_id].push(relation.spotify_id)
+      })
+
+      // Actualizar cada playlist con sus artistas
+      for (const [playlistId, artistIds] of Object.entries(playlistArtistMap)) {
+        await db.execute(sql`
+          UPDATE playlists
+          SET artist_ids = ${JSON.stringify(artistIds)}
+          WHERE id = ${Number.parseInt(playlistId)}
+        `)
+      }
+    }
+
+    return { success: true, message: "Migración completada correctamente" }
+  } catch (error) {
+    console.error("Error durante la migración:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function getPlaylistRankings(playlistId: number) {
+  try {
+    const db = getDbConnection()
+
+    const result = await db
+      .select({
+        userId: tierlists.userId,
+        artistId: sql<number>`CAST(key AS INTEGER)`,
+        tierId: sql<string>`value`,
+      })
+      .from(tierlists)
+      .innerJoin(userPlaylists, sql`${tierlists.userPlaylistId} = ${userPlaylists.id}`)
+      .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
+      .execute()
+
+    const rankings = []
+    for (const row of result) {
+      if (row && row.userId) {
+        const tierlist = await getTierlist(row.userId, row.userPlaylistId)
+        if (tierlist && tierlist.ratings) {
+          for (const artistId in tierlist.ratings) {
+            rankings.push({
+              userId: row.userId,
+              artistId: Number.parseInt(artistId),
+              tierId: tierlist.ratings[artistId],
+            })
+          }
+        }
+      }
+    }
+
+    return safeSerialize(rankings)
+  } catch (error) {
+    console.error("Error al obtener rankings de la playlist:", error)
+    throw error
   }
 }

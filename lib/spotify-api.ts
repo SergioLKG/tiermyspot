@@ -244,24 +244,6 @@ export async function getAccessToken(session: any): Promise<string> {
   throw new Error("No hay tokens disponibles para obtener acceso");
 }
 
-export async function getPlaylist(
-  playlistId: string,
-  accessToken: string,
-  market: string = "ES"
-) {
-  const response = await spotifyFetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}?market=${market}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  return await response.json();
-}
-
 export async function getPlaylistTracks(
   playlistId: string,
   accessToken: string,

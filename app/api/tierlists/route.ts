@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
-import { getUserByEmail, getTierlist, updateTierlistRating } from "@/lib/db"
+import { getUserByEmail, getTierlist, updateTierlistRating, getUserPlaylist } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +25,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    const tierlist = await getTierlist(user.id, Number.parseInt(playlistId), privateName)
+    // Obtener la relación usuario-playlist
+    const userPlaylist = await getUserPlaylist(user.id, Number.parseInt(playlistId), privateName)
+
+    if (!userPlaylist) {
+      return NextResponse.json({ error: "Relación usuario-playlist no encontrada" }, { status: 404 })
+    }
+
+    // Obtener la tierlist del usuario
+    const tierlist = await getTierlist(user.id, userPlaylist.id)
 
     if (!tierlist) {
       return NextResponse.json({ ratings: {} })
@@ -58,7 +66,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    await updateTierlistRating(user.id, Number.parseInt(playlistId), Number.parseInt(artistId), tierId, privateName)
+    // Obtener la relación usuario-playlist
+    const userPlaylist = await getUserPlaylist(user.id, Number.parseInt(playlistId), privateName)
+
+    if (!userPlaylist) {
+      return NextResponse.json({ error: "Relación usuario-playlist no encontrada" }, { status: 404 })
+    }
+
+    // Actualizar el rating en la tierlist
+    await updateTierlistRating(user.id, userPlaylist.id, Number.parseInt(artistId), tierId)
 
     return NextResponse.json({ success: true })
   } catch (error) {

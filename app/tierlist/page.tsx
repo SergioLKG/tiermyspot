@@ -10,7 +10,6 @@ import { Loader2 } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { getSelectedPlaylist } from "@/lib/utils"
-import { usePersistentState } from "@/hooks/use-persistent-state"
 import { ArtistCard } from "@/components/artist-card"
 import { cachedFetch } from "@/lib/api-cache"
 
@@ -30,28 +29,25 @@ export default function TierlistPage() {
   const [rankings, setRankings] = useState({})
   const [playlistName, setPlaylistName] = useState("")
   const [playlistImage, setPlaylistImage] = useState("")
-  const [playlistId, setPlaylistId] = usePersistentState("tierlist-playlist-id", "")
+  const [playlistId, setPlaylistId] = useState("")
+  const [userPlaylistId, setUserPlaylistId] = useState("")
   const [playingTrack, setPlayingTrack] = useState(null)
   const [audio, setAudio] = useState(null)
   const [currentTrackIndices, setCurrentTrackIndices] = useState({})
-  const [playlistStats, setPlaylistStats] = useState({ userCount: 0 })
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState(null)
   const [loadingMessage, setLoadingMessage] = useState("")
-  const internalRouter = useRouter()
-  const searchParams = useSearchParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
     if (status === "unauthenticated") {
-      internalRouter.push("/login")
+      router.push("/login")
     }
-  }, [status, internalRouter])
+  }, [status, router])
 
   useEffect(() => {
-    let persistedArtists, persistedRankings, persistedPlaylistName, persistedPlaylistImage
-
     const fetchData = async () => {
       if (status !== "authenticated" || !session) return
 
@@ -103,14 +99,17 @@ export default function TierlistPage() {
           `/api/tierlists?playlistId=${playlistIdValue}&privateName=${selectedPlaylist.privatePlaylistName || ""}`,
         )
 
-        if (tierlistData) {
+        if (tierlistData && !tierlistData.error) {
           setRankings(tierlistData.ratings || {})
+          if (tierlistData.userPlaylistId) {
+            setUserPlaylistId(tierlistData.userPlaylistId)
+          }
         } else {
-          // Si no hay tierlist, inicializar con un objeto vacío
+          // Si hay un error o no hay tierlist, inicializar con un objeto vacío
           setRankings({})
         }
-      } catch (error) {
-        console.error("Error al cargar datos:", error)
+      } catch (err) {
+        console.error("Error al cargar datos:", err)
         setError("Error al cargar los datos. Por favor, intenta de nuevo.")
       } finally {
         setIsLoading(false)
@@ -163,7 +162,6 @@ export default function TierlistPage() {
         setRankings({ ...rankings }) // Restaurar el estado anterior
 
         // Mostrar un mensaje de error al usuario
-        // Puedes implementar un sistema de notificaciones o usar un toast
         alert("Error al guardar el ranking. Por favor, inténtalo de nuevo.")
       }
     } catch (error) {
@@ -264,7 +262,7 @@ export default function TierlistPage() {
       <div className="flex justify-center items-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Cargando tu tierlist...</p>
+          <p className="text-sm text-muted-foreground">{loadingMessage || "Cargando tu tierlist..."}</p>
         </div>
       </div>
     )
@@ -273,6 +271,50 @@ export default function TierlistPage() {
   // Si no hay sesión, redirigir al login
   if (!session) {
     return null // La redirección se maneja en el useEffect
+  }
+
+  // Mostrar error si lo hay
+  if (error) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header activePage="tierlist" />
+        <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+          <div className="max-w-md w-full">
+            <div className="bg-destructive/10 p-6 rounded-lg border border-destructive/20 flex flex-col items-center">
+              <div className="text-destructive mb-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-12 w-12"
+                >
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                  <path d="M12 9v4"></path>
+                  <path d="M12 17h.01"></path>
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold mb-2">Error al cargar la tierlist</h2>
+              <p className="text-center mb-4">{error}</p>
+              <div className="flex gap-4">
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Intentar de nuevo
+                </Button>
+                <Link href="/dashboard">
+                  <Button>Volver al dashboard</Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   return (
