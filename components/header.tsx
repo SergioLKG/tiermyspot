@@ -60,7 +60,7 @@ export function Header({ activePage = "" }) {
                   className="object-cover"
                 />
               </div>
-              <span className="text-sm font-medium hidden sm:inline-block">{session.user.name}</span>
+              <span className="text-sm font-medium hidden sm:inline-block">{session.user.name || "UnknownUser"}</span>
             </div>
           )}
           {session && (

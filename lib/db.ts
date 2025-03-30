@@ -769,7 +769,7 @@ export async function migrateDatabase() {
     // 4. Migrar datos de is_private y private_name de tierlists a user_playlists
     await db.execute(sql`
       UPDATE user_playlists up
-      SET 
+      SET
         is_private = t.is_private,
         private_name = t.private_name
       FROM tierlists t
@@ -786,15 +786,15 @@ export async function migrateDatabase() {
 
     if (checkPlaylistArtistsTable.length > 0) {
       // Obtener todas las relaciones playlist-artista
-      const playlistArtistRelations = await db.execute(sql`
+      const playlistArtistRelations:any = await db.execute(sql`
         SELECT pa.playlist_id, a.spotify_id
         FROM playlist_artists pa
         JOIN artists a ON pa.artist_id = a.id
       `)
 
       // Agrupar por playlist_id
-      const playlistArtistMap = {}
-      playlistArtistRelations.forEach((relation) => {
+      const playlistArtistMap:any = {}
+      playlistArtistRelations.forEach((relation:any) => {
         if (!playlistArtistMap[relation.playlist_id]) {
           playlistArtistMap[relation.playlist_id] = []
         }
