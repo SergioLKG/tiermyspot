@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
-import { getFullPlaylistData, getGroupTierlist, updateGroupTierlist, getUserPlaylist } from "@/lib/db"
+import { getFullPlaylistData, getGroupTierlist, updateGroupTierlist, getUserPlaylist, getUserByEmail } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +27,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener la userPlaylist correspondiente
-    const userPlaylist = await getUserPlaylist(Number.parseInt(playlistId), !!privateName, privateName)
+    const user = await getUserByEmail(session.user.email)
+    if (!user) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
+    }
+
+    const userPlaylist = await getUserPlaylist(user.id, Number.parseInt(playlistId), privateName)
 
     if (!userPlaylist) {
       return NextResponse.json({ error: "UserPlaylist no encontrada" }, { status: 404 })

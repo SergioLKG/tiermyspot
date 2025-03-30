@@ -47,6 +47,7 @@ export default function TierlistPage() {
     }
   }, [status, router])
 
+  // Modificar la función fetchData para usar la nueva estructura
   useEffect(() => {
     const fetchData = async () => {
       if (status !== "authenticated" || !session) return

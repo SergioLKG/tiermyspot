@@ -45,6 +45,7 @@ async function refreshAccessToken(refreshToken: any) {
   }
 }
 
+// Corregir la función POST para que funcione con la nueva estructura
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       // Si la playlist estaba oculta, mostrarla
       await unhideUserTierlists(user.id, existingPlaylist.id)
 
-      // Crear tierlist para el usuario
+      // Crear tierlist para el usuario si no existe
       const tierlist = await getOrCreateTierlist({
         userId: user.id,
         userPlaylistId: userPlaylist.id,

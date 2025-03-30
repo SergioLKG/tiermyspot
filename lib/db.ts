@@ -223,23 +223,24 @@ export async function getOrCreatePlaylist(playlistData: {
   return playlist
 }
 
-// Modificada para trabajar con el nuevo esquema
-export async function getUserPlaylist(playlistId: number, isPrivate = false, privateName?: string) {
+// Corregir la función getUserPlaylist para que funcione con la nueva estructura
+export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
-  let query = db
-    .select()
-    .from(userPlaylists)
-    .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.isPrivate} = ${isPrivate}`)
+  let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${playlistId}`)
 
-  if (isPrivate && privateName) {
+  if (privateName) {
     query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
-  } else if (isPrivate) {
-    query = query.where(sql`${userPlaylists.privateName} IS NOT NULL`)
   } else {
     query = query.where(sql`${userPlaylists.privateName} IS NULL`)
   }
 
-  const result = await query
+  const result = await query.execute()
+
+  // Si no hay resultados, retornar null
+  if (!result || result.length === 0) {
+    return null
+  }
+
   return safeSerialize(result[0])
 }
 
@@ -310,20 +311,55 @@ export async function getOrCreateUserPlaylist(userPlaylistData: {
   const db = getDbConnection()
 
   // Buscar una userPlaylist existente que coincida con los criterios
-  let userPlaylist = await getUserPlaylist(
-    userPlaylistData.playlistId,
-    userPlaylistData.isPrivate || false,
-    userPlaylistData.privateName,
-  )
+  let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${userPlaylistData.playlistId}`)
 
-  if (userPlaylist) {
+  if (userPlaylistData.privateName) {
+    query = query.where(sql`${userPlaylists.privateName} = ${userPlaylistData.privateName}`)
+  } else {
+    query = query.where(sql`${userPlaylists.privateName} IS NULL`)
+  }
+
+  const userPlaylistResult = await query.execute()
+
+  if (userPlaylistResult && userPlaylistResult.length > 0) {
     // Si existe, añadir el usuario al array de usersIds si no está ya
-    userPlaylist = await addUserToUserPlaylist(userPlaylist.id, userPlaylistData.userId)
-    return userPlaylist
+    const userPlaylist = userPlaylistResult[0]
+    let usersIds = userPlaylist.usersIds || []
+
+    // Asegurarnos de que usersIds es un array
+    if (!Array.isArray(usersIds)) {
+      usersIds = []
+    }
+
+    // Añadir el userId si no está ya en el array
+    if (!usersIds.includes(userPlaylistData.userId)) {
+      usersIds.push(userPlaylistData.userId)
+
+      // Actualizar la userPlaylist
+      const result = await db
+        .update(userPlaylists)
+        .set({ usersIds })
+        .where(sql`${userPlaylists.id} = ${userPlaylist.id}`)
+        .returning()
+
+      return safeSerialize(result[0])
+    }
+
+    return safeSerialize(userPlaylist)
   }
 
   // Si no existe, crear una nueva
-  return await createUserPlaylist(userPlaylistData)
+  const result = await db
+    .insert(userPlaylists)
+    .values({
+      playlistId: userPlaylistData.playlistId,
+      isPrivate: userPlaylistData.isPrivate || false,
+      privateName: userPlaylistData.privateName,
+      usersIds: [userPlaylistData.userId], // Inicializar con el usuario que crea la playlist
+    })
+    .returning()
+
+  return safeSerialize(result[0])
 }
 
 // Modificada para trabajar con isHidden en tierlists
@@ -342,10 +378,11 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
 
   // Obtener todas las userPlaylists donde el usuario está en usersIds
+  // Corregir la consulta para usar el operador ? para JSONB
   const userPlaylistsResult = await db
     .select()
     .from(userPlaylists)
-    .where(sql`${userPlaylists.usersIds} @> ${JSON.stringify([userId])}`)
+    .where(sql`${userPlaylists.usersIds} ?? ${userId.toString()}`)
     .execute()
 
   if (userPlaylistsResult.length === 0) {
@@ -937,17 +974,17 @@ export async function getPlaylistRankings(userPlaylistId: number) {
   }
 }
 
+// Corregir la función hideUserTierlists
 export async function hideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
     // Encontrar todas las userPlaylists del usuario para esta playlist
+    // Corregir la consulta para usar el operador ? para JSONB
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(
-        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.users_ids} @> ${JSON.stringify([userId])}`,
-      )
+      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds} ?? ${userId.toString()}`)
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
@@ -981,18 +1018,17 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
   }
 }
 
-// Nueva función para mostrar una playlist oculta
+// Corregir la función unhideUserTierlists
 export async function unhideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
     // Encontrar todas las userPlaylists del usuario para esta playlist
+    // Corregir la consulta para usar el operador ? para JSONB
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(
-        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.users_ids} @> ${JSON.stringify([userId])}`,
-      )
+      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds} ?? ${userId.toString()}`)
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
