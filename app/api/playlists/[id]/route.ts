@@ -17,7 +17,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "ID de playlist no proporcionado" }, { status: 400 })
     }
 
-    const playlistData = await getFullPlaylistData(Number.parseInt(id))
+    // Convertir el id a número
+    const playlistId = Number.parseInt(id, 10)
+
+    if (isNaN(playlistId)) {
+      return NextResponse.json({ error: "ID de playlist inválido" }, { status: 400 })
+    }
+
+    const playlistData = await getFullPlaylistData(playlistId)
 
     if (!playlistData) {
       return NextResponse.json({ error: "Playlist no encontrada" }, { status: 404 })

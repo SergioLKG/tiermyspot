@@ -12,15 +12,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const playlistId = searchParams.get("playlistId")
+    const playlistIdStr = searchParams.get("playlistId")
     const privateName = searchParams.get("privateName") || undefined
 
-    if (!playlistId) {
+    if (!playlistIdStr) {
       return NextResponse.json({ error: "ID de playlist no proporcionado" }, { status: 400 })
     }
 
+    // Convertir el playlistId a número
+    const playlistId = Number.parseInt(playlistIdStr, 10)
+
+    if (isNaN(playlistId)) {
+      return NextResponse.json({ error: "ID de playlist inválido" }, { status: 400 })
+    }
+
     // Obtener datos completos de la playlist
-    const playlistData = await getFullPlaylistData(Number.parseInt(playlistId))
+    const playlistData = await getFullPlaylistData(playlistId)
 
     if (!playlistData) {
       return NextResponse.json({ error: "Playlist no encontrada" }, { status: 404 })
@@ -32,7 +39,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    const userPlaylist = await getUserPlaylist(user.id, Number.parseInt(playlistId), privateName)
+    const userPlaylist = await getUserPlaylist(user.id, playlistId, privateName)
 
     if (!userPlaylist) {
       return NextResponse.json({ error: "UserPlaylist no encontrada" }, { status: 404 })

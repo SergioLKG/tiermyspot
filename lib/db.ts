@@ -226,14 +226,18 @@ export async function getOrCreatePlaylist(playlistData: {
 // Corregir la función getUserPlaylist para que funcione con la nueva estructura
 export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
+
+  // Construir la consulta base
   let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${playlistId}`)
 
+  // Añadir condición para privateName
   if (privateName) {
     query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
   } else {
     query = query.where(sql`${userPlaylists.privateName} IS NULL`)
   }
 
+  // Ejecutar la consulta
   const result = await query.execute()
 
   // Si no hay resultados, retornar null
@@ -241,7 +245,19 @@ export async function getUserPlaylist(userId: number, playlistId: number, privat
     return null
   }
 
-  return safeSerialize(result[0])
+  // Verificar si el usuario está en el array usersIds
+  const userPlaylist = result[0]
+  const usersIds = userPlaylist.usersIds || []
+
+  // Si el usuario no está en el array, añadirlo
+  if (!usersIds.includes(userId)) {
+    usersIds.push(userId)
+
+    // Actualizar la userPlaylist
+    await db.update(userPlaylists).set({ usersIds }).where(sql`${userPlaylists.id} = ${userPlaylist.id}`).execute()
+  }
+
+  return safeSerialize(userPlaylist)
 }
 
 export async function createUserPlaylist(userPlaylistData: {
@@ -378,11 +394,11 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
 
   // Obtener todas las userPlaylists donde el usuario está en usersIds
-  // Corregir la consulta para usar el operador ? para JSONB
+  // Usar una expresión SQL más explícita para verificar si el userId está en el array
   const userPlaylistsResult = await db
     .select()
     .from(userPlaylists)
-    .where(sql`${userPlaylists.usersIds} ?? ${userId.toString()}`)
+    .where(sql`${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userId})`)
     .execute()
 
   if (userPlaylistsResult.length === 0) {
@@ -980,11 +996,13 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
     const db = getDbConnection()
 
     // Encontrar todas las userPlaylists del usuario para esta playlist
-    // Corregir la consulta para usar el operador ? para JSONB
+    // Usar una expresión SQL más explícita
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds} ?? ${userId.toString()}`)
+      .where(
+        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userId})`,
+      )
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
@@ -1024,11 +1042,13 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
     const db = getDbConnection()
 
     // Encontrar todas las userPlaylists del usuario para esta playlist
-    // Corregir la consulta para usar el operador ? para JSONB
+    // Usar una expresión SQL más explícita
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds} ?? ${userId.toString()}`)
+      .where(
+        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userId})`,
+      )
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
