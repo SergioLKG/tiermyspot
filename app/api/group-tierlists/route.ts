@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
-import { getFullPlaylistData, getGroupTierlist, updateGroupTierlist } from "@/lib/db"
+import { getFullPlaylistData, getGroupTierlist, updateGroupTierlist, getUserPlaylist } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,13 +26,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Playlist no encontrada" }, { status: 404 })
     }
 
+    // Obtener la userPlaylist correspondiente
+    const userPlaylist = await getUserPlaylist(Number.parseInt(playlistId), !!privateName, privateName)
+
+    if (!userPlaylist) {
+      return NextResponse.json({ error: "UserPlaylist no encontrada" }, { status: 404 })
+    }
+
     // Obtener la tierlist grupal
-    let groupTierlist = await getGroupTierlist(Number.parseInt(playlistId), privateName)
+    let groupTierlist = await getGroupTierlist(userPlaylist.id)
 
     // Si no existe, crearla
     if (!groupTierlist) {
-      await updateGroupTierlist(Number.parseInt(playlistId), privateName)
-      groupTierlist = await getGroupTierlist(Number.parseInt(playlistId), privateName)
+      await updateGroupTierlist(userPlaylist.id)
+      groupTierlist = await getGroupTierlist(userPlaylist.id)
     }
 
     return NextResponse.json({

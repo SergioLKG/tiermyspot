@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
-import { getUserByEmail, getUserPlaylists, hideUserPlaylist } from "@/lib/db"
+import { getUserByEmail, getUserPlaylists, hideUserTierlists } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "hide") {
-      const result = await hideUserPlaylist(user.id, Number.parseInt(playlistId))
+      const result = await hideUserTierlists(user.id, Number.parseInt(playlistId))
       return NextResponse.json({ success: !!result })
     }
 

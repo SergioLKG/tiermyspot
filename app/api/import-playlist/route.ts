@@ -9,6 +9,7 @@ import {
   getUserByEmail,
   getPlaylistBySpotifyId,
   getOrCreateTierlist,
+  unhideUserTierlists,
 } from "@/lib/db"
 
 // Función para renovar el token de acceso
@@ -87,10 +88,14 @@ export async function POST(request: NextRequest) {
         privateName: isPrivate ? privatePlaylistName : undefined,
       })
 
+      // Si la playlist estaba oculta, mostrarla
+      await unhideUserTierlists(user.id, existingPlaylist.id)
+
       // Crear tierlist para el usuario
       const tierlist = await getOrCreateTierlist({
         userId: user.id,
         userPlaylistId: userPlaylist.id,
+        isHidden: false, // Asegurarse de que no esté oculta
       })
 
       return NextResponse.json({
@@ -200,6 +205,7 @@ export async function POST(request: NextRequest) {
     const tierlist = await getOrCreateTierlist({
       userId: user.id,
       userPlaylistId: userPlaylist.id,
+      isHidden: false, // Asegurarse de que no esté oculta
     })
 
     return NextResponse.json({
