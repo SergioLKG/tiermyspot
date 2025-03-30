@@ -75,7 +75,7 @@ export const groupTierlists = pgTable("group_tierlists", {
 })
 
 // Función auxiliar para manejar la serialización de objetos
-function safeSerialize(obj) {
+function safeSerialize(obj:any):any {
   if (!obj) return obj
 
   // Si es un array, aplicar a cada elemento
@@ -85,7 +85,7 @@ function safeSerialize(obj) {
 
   // Si es un objeto, crear una copia limpia
   if (typeof obj === "object") {
-    const result = {}
+    const result:any = {}
     for (const key in obj) {
       // Excluir propiedades que puedan causar referencias circulares
       if (key !== "table" && key !== "schema" && key !== "_") {
@@ -223,7 +223,7 @@ export async function getOrCreatePlaylist(playlistData: {
 
 export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
-  let query = db
+  let query:any = db
     .select()
     .from(userPlaylists)
     .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
@@ -300,7 +300,7 @@ export async function hideUserPlaylist(userId: number, playlistId: number) {
 
 export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
-  let query = db
+  let query:any = db
     .select({
       id: playlists.id,
       spotifyId: playlists.spotifyId,
@@ -330,7 +330,7 @@ export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection()
 
   // Primero obtenemos los IDs de artistas de la playlist
-  const playlistResult = await db
+  const playlistResult:any = await db
     .select({ artistIds: playlists.artistIds })
     .from(playlists)
     .where(sql`${playlists.id} = ${playlistId}`)
@@ -465,7 +465,7 @@ export async function updateTierlistRating(
     .returning()
 
   // Obtener la información de la playlist para actualizar la tierlist grupal
-  const userPlaylistInfo = await db
+  const userPlaylistInfo:any = await db
     .select({
       playlistId: userPlaylists.playlistId,
       privateName: userPlaylists.privateName,
@@ -484,7 +484,7 @@ export async function updateTierlistRating(
 
 export async function getGroupTierlist(playlistId: number, privateName?: string) {
   const db = getDbConnection()
-  let query = db.select().from(groupTierlists).where(sql`${groupTierlists.playlistId} = ${playlistId}`)
+  let query:any = db.select().from(groupTierlists).where(sql`${groupTierlists.playlistId} = ${playlistId}`)
 
   if (privateName) {
     query = query.where(sql`${groupTierlists.privateName} = ${privateName}`)
@@ -522,7 +522,7 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
   const db = getDbConnection()
 
   // Obtener todas las userPlaylists para esta playlist
-  let userPlaylistsQuery = db
+  let userPlaylistsQuery:any = db
     .select({ id: userPlaylists.id })
     .from(userPlaylists)
     .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
@@ -534,7 +534,7 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
   }
 
   const userPlaylistsResult = await userPlaylistsQuery.execute()
-  const userPlaylistIds = userPlaylistsResult.map((up) => up.id)
+  const userPlaylistIds = userPlaylistsResult.map((up:any) => up.id)
 
   if (userPlaylistIds.length === 0) {
     return null
@@ -548,7 +548,7 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
     .execute()
 
   // Calcular los ratings agregados
-  const aggregatedRatings = {}
+  const aggregatedRatings:any = {}
   const uniqueUserIds = new Set()
 
   tierlistsResult.forEach((tierlist) => {
@@ -707,113 +707,116 @@ export async function getPlaylistUserCount(playlistId: number): Promise<number> 
   }
 }
 
-// Función para migrar datos de la estructura antigua a la nueva
+// Reemplazar la función migrateDatabase con esta nueva versión
 export async function migrateDatabase() {
   const db = getDbConnection()
 
   try {
-    // 1. Verificar si la columna artist_ids ya existe en la tabla playlists
-    const checkColumn = await db.execute(sql`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'playlists' AND column_name = 'artist_ids'
-    `)
-
-    // Si la columna no existe, crearla
-    if (checkColumn.length === 0) {
-      await db.execute(sql`
-        ALTER TABLE playlists 
-        ADD COLUMN artist_ids JSONB DEFAULT '[]'
-      `)
-    }
-
-    // 2. Verificar si existen las columnas is_private y private_name en user_playlists
-    const checkPrivateColumns = await db.execute(sql`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'user_playlists' AND column_name IN ('is_private', 'private_name')
-    `)
-
-    // Si las columnas no existen, crearlas
-    if (checkPrivateColumns.length < 2) {
-      await db.execute(sql`
-        ALTER TABLE user_playlists 
-        ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS private_name TEXT
-      `)
-    }
-
-    // 3. Verificar si existe la columna user_playlist_id en tierlists
-    const checkUserPlaylistIdColumn = await db.execute(sql`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'tierlists' AND column_name = 'user_playlist_id'
-    `)
-
-    // Si la columna no existe, crearla
-    if (checkUserPlaylistIdColumn.length === 0) {
-      await db.execute(sql`
-        ALTER TABLE tierlists 
-        ADD COLUMN user_playlist_id INTEGER
-      `)
-
-      // Migrar datos de la relación playlist_id a user_playlist_id
-      await db.execute(sql`
-        UPDATE tierlists t
-        SET user_playlist_id = up.id
-        FROM user_playlists up
-        WHERE t.playlist_id = up.playlist_id AND t.user_id = up.user_id
-      `)
-    }
-
-    // 4. Migrar datos de is_private y private_name de tierlists a user_playlists
+    // Eliminar todas las tablas existentes si existen
     await db.execute(sql`
-      UPDATE user_playlists up
-      SET
-        is_private = t.is_private,
-        private_name = t.private_name
-      FROM tierlists t
-      WHERE up.id = t.user_playlist_id AND (t.is_private = TRUE OR t.private_name IS NOT NULL)
+      DROP TABLE IF EXISTS tierlists CASCADE;
+      DROP TABLE IF EXISTS group_tierlists CASCADE;
+      DROP TABLE IF EXISTS user_playlists CASCADE;
+      DROP TABLE IF EXISTS playlist_artists CASCADE;
+      DROP TABLE IF EXISTS artists CASCADE;
+      DROP TABLE IF EXISTS playlists CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
     `)
 
-    // 5. Migrar datos de playlist_artists a la columna artist_ids en playlists
-    // Verificar si existe la tabla playlist_artists
-    const checkPlaylistArtistsTable = await db.execute(sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_name = 'playlist_artists'
+    // Crear tabla de usuarios
+    await db.execute(sql`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        name TEXT,
+        image TEXT,
+        spotify_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
     `)
 
-    if (checkPlaylistArtistsTable.length > 0) {
-      // Obtener todas las relaciones playlist-artista
-      const playlistArtistRelations:any = await db.execute(sql`
-        SELECT pa.playlist_id, a.spotify_id
-        FROM playlist_artists pa
-        JOIN artists a ON pa.artist_id = a.id
-      `)
+    // Crear tabla de playlists
+    await db.execute(sql`
+      CREATE TABLE playlists (
+        id SERIAL PRIMARY KEY,
+        spotify_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        image TEXT,
+        artist_ids JSONB DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
 
-      // Agrupar por playlist_id
-      const playlistArtistMap:any = {}
-      playlistArtistRelations.forEach((relation:any) => {
-        if (!playlistArtistMap[relation.playlist_id]) {
-          playlistArtistMap[relation.playlist_id] = []
-        }
-        playlistArtistMap[relation.playlist_id].push(relation.spotify_id)
-      })
+    // Crear tabla de artistas
+    await db.execute(sql`
+      CREATE TABLE artists (
+        id SERIAL PRIMARY KEY,
+        spotify_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        image TEXT
+      )
+    `)
 
-      // Actualizar cada playlist con sus artistas
-      for (const [playlistId, artistIds] of Object.entries(playlistArtistMap)) {
-        await db.execute(sql`
-          UPDATE playlists
-          SET artist_ids = ${JSON.stringify(artistIds)}
-          WHERE id = ${Number.parseInt(playlistId)}
-        `)
-      }
-    }
+    // Crear tabla de relación usuario-playlist
+    await db.execute(sql`
+      CREATE TABLE user_playlists (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        playlist_id INTEGER NOT NULL,
+        is_hidden BOOLEAN DEFAULT FALSE,
+        is_private BOOLEAN DEFAULT FALSE,
+        private_name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+      )
+    `)
 
-    return { success: true, message: "Migración completada correctamente" }
-  } catch (error) {
-    console.error("Error durante la migración:", error)
+    // Crear tabla de tierlists
+    await db.execute(sql`
+      CREATE TABLE tierlists (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        user_playlist_id INTEGER NOT NULL,
+        ratings JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_playlist_id) REFERENCES user_playlists(id) ON DELETE CASCADE
+      )
+    `)
+
+    // Crear tabla de tierlists grupales
+    await db.execute(sql`
+      CREATE TABLE group_tierlists (
+        id SERIAL PRIMARY KEY,
+        playlist_id INTEGER NOT NULL,
+        private_name TEXT,
+        aggregated_ratings JSONB DEFAULT '{}',
+        user_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+      )
+    `)
+
+    // Crear índices para mejorar el rendimiento
+    await db.execute(sql`
+      CREATE INDEX idx_users_email ON users(email);
+      CREATE INDEX idx_playlists_spotify_id ON playlists(spotify_id);
+      CREATE INDEX idx_artists_spotify_id ON artists(spotify_id);
+      CREATE INDEX idx_user_playlists_user_id ON user_playlists(user_id);
+      CREATE INDEX idx_user_playlists_playlist_id ON user_playlists(playlist_id);
+      CREATE INDEX idx_tierlists_user_id ON tierlists(user_id);
+      CREATE INDEX idx_tierlists_user_playlist_id ON tierlists(user_playlist_id);
+      CREATE INDEX idx_group_tierlists_playlist_id ON group_tierlists(playlist_id);
+    `)
+
+    return { success: true, message: "Base de datos creada correctamente desde cero" }
+  } catch (error:any) {
+    console.error("Error durante la creación de la base de datos:", error)
     return { success: false, error: error.message }
   }
 }
@@ -822,7 +825,7 @@ export async function getPlaylistRankings(playlistId: number) {
   try {
     const db = getDbConnection()
 
-    const result = await db
+    const result:any = await db
       .select({
         userId: tierlists.userId,
         artistId: sql<number>`CAST(key AS INTEGER)`,
