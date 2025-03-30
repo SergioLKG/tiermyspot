@@ -33,18 +33,18 @@ export const playlists = pgTable("playlists", {
   name: text("name").notNull(),
   description: text("description"),
   image: text("image"),
-  artistIds: jsonb("artist_ids").default([]), // Nueva columna para almacenar los IDs de los artistas
+  artistIds: jsonb("artist_ids").default([]), // Array de IDs de Spotify de artistas
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 })
 
+// Modificada: ahora solo relaciona playlist con usuario que la creó
 export const userPlaylists = pgTable("user_playlists", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull(), // Usuario que creó/importó la playlist
   playlistId: integer("playlist_id").notNull(),
-  isHidden: boolean("is_hidden").default(false),
-  isPrivate: boolean("is_private").default(false), // Movido desde tierlists
-  privateName: text("private_name"), // Movido desde tierlists
+  isPrivate: boolean("is_private").default(false),
+  privateName: text("private_name"),
   createdAt: timestamp("created_at").defaultNow(),
 })
 
@@ -55,11 +55,13 @@ export const artists = pgTable("artists", {
   image: text("image"),
 })
 
+// Modificada: ahora incluye is_hidden para que cada usuario pueda ocultar su propia tierlist
 export const tierlists = pgTable("tierlists", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  userPlaylistId: integer("user_playlist_id").notNull(), // Cambiado de playlistId a userPlaylistId
+  userPlaylistId: integer("user_playlist_id").notNull(),
   ratings: jsonb("ratings").default({}),
+  isHidden: boolean("is_hidden").default(false), // Movido desde userPlaylists
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 })
@@ -75,7 +77,7 @@ export const groupTierlists = pgTable("group_tierlists", {
 })
 
 // Función auxiliar para manejar la serialización de objetos
-function safeSerialize(obj:any):any {
+function safeSerialize(obj) {
   if (!obj) return obj
 
   // Si es un array, aplicar a cada elemento
@@ -85,7 +87,7 @@ function safeSerialize(obj:any):any {
 
   // Si es un objeto, crear una copia limpia
   if (typeof obj === "object") {
-    const result:any = {}
+    const result = {}
     for (const key in obj) {
       // Excluir propiedades que puedan causar referencias circulares
       if (key !== "table" && key !== "schema" && key !== "_") {
@@ -221,12 +223,10 @@ export async function getOrCreatePlaylist(playlistData: {
   return playlist
 }
 
+// Modificada para trabajar con el nuevo esquema
 export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
-  let query:any = db
-    .select()
-    .from(userPlaylists)
-    .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+  let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${playlistId}`)
 
   if (privateName) {
     query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
@@ -241,7 +241,6 @@ export async function getUserPlaylist(userId: number, playlistId: number, privat
 export async function createUserPlaylist(userPlaylistData: {
   userId: number
   playlistId: number
-  isHidden?: boolean
   isPrivate?: boolean
   privateName?: string
 }) {
@@ -251,7 +250,6 @@ export async function createUserPlaylist(userPlaylistData: {
     .values({
       userId: userPlaylistData.userId,
       playlistId: userPlaylistData.playlistId,
-      isHidden: userPlaylistData.isHidden || false,
       isPrivate: userPlaylistData.isPrivate || false,
       privateName: userPlaylistData.privateName,
     })
@@ -262,45 +260,74 @@ export async function createUserPlaylist(userPlaylistData: {
 export async function getOrCreateUserPlaylist(userPlaylistData: {
   userId: number
   playlistId: number
-  isHidden?: boolean
   isPrivate?: boolean
   privateName?: string
 }) {
-  let userPlaylist = await getUserPlaylist(
-    userPlaylistData.userId,
-    userPlaylistData.playlistId,
-    userPlaylistData.privateName,
-  )
+  // Primero intentamos encontrar una userPlaylist existente que coincida con los criterios
+  const db = getDbConnection()
+  let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${userPlaylistData.playlistId}`)
 
-  if (!userPlaylist) {
-    userPlaylist = await createUserPlaylist(userPlaylistData)
-  } else if (userPlaylist.isHidden) {
-    // Si estaba oculta, la hacemos visible de nuevo
-    const db = getDbConnection()
-    const result = await db
-      .update(userPlaylists)
-      .set({ isHidden: false })
-      .where(sql`${userPlaylists.id} = ${userPlaylist.id}`)
-      .returning()
-    userPlaylist = safeSerialize(result[0])
+  if (userPlaylistData.privateName) {
+    query = query.where(sql`${userPlaylists.privateName} = ${userPlaylistData.privateName}`)
+  } else {
+    query = query.where(sql`${userPlaylists.privateName} IS NULL`)
   }
 
-  return userPlaylist
+  if (userPlaylistData.isPrivate) {
+    query = query.where(sql`${userPlaylists.isPrivate} = ${userPlaylistData.isPrivate}`)
+  }
+
+  const existingUserPlaylists = await query
+  let userPlaylist = existingUserPlaylists[0]
+
+  // Si no existe, la creamos
+  if (!userPlaylist) {
+    userPlaylist = await createUserPlaylist(userPlaylistData)
+  }
+
+  return safeSerialize(userPlaylist)
 }
 
-export async function hideUserPlaylist(userId: number, playlistId: number) {
+// Modificada para trabajar con isHidden en tierlists en lugar de userPlaylists
+export async function hideUserTierlist(userId: number, userPlaylistId: number) {
   const db = getDbConnection()
   const result = await db
-    .update(userPlaylists)
+    .update(tierlists)
     .set({ isHidden: true })
-    .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+    .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylistId}`)
     .returning()
   return safeSerialize(result[0])
 }
 
+// Modificada para obtener solo las playlists que el usuario ha clasificado
 export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
-  let query:any = db
+
+  // Primero obtenemos las tierlists del usuario
+  let tierlistsQuery = db
+    .select({
+      id: tierlists.id,
+      userPlaylistId: tierlists.userPlaylistId,
+      isHidden: tierlists.isHidden,
+    })
+    .from(tierlists)
+    .where(sql`${tierlists.userId} = ${userId}`)
+
+  if (!includeHidden) {
+    tierlistsQuery = tierlistsQuery.where(sql`${tierlists.isHidden} = false`)
+  }
+
+  const userTierlists = await tierlistsQuery
+
+  if (userTierlists.length === 0) {
+    return []
+  }
+
+  // Obtenemos los IDs de userPlaylists
+  const userPlaylistIds = userTierlists.map((t) => t.userPlaylistId)
+
+  // Ahora obtenemos los detalles completos de las playlists
+  const result = await db
     .select({
       id: playlists.id,
       spotifyId: playlists.spotifyId,
@@ -308,21 +335,19 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
       description: playlists.description,
       image: playlists.image,
       artistIds: playlists.artistIds,
-      isHidden: userPlaylists.isHidden,
       isPrivate: userPlaylists.isPrivate,
       privateName: userPlaylists.privateName,
       userPlaylistId: userPlaylists.id,
+      tierlistId: tierlists.id,
+      isHidden: tierlists.isHidden,
       createdAt: playlists.createdAt,
     })
     .from(userPlaylists)
     .innerJoin(playlists, sql`${userPlaylists.playlistId} = ${playlists.id}`)
-    .where(sql`${userPlaylists.userId} = ${userId}`)
+    .innerJoin(tierlists, sql`${tierlists.userPlaylistId} = ${userPlaylists.id}`)
+    .where(sql`${tierlists.userId} = ${userId} AND ${userPlaylists.id} IN (${userPlaylistIds})`)
+    .execute()
 
-  if (!includeHidden) {
-    query = query.where(sql`${userPlaylists.isHidden} = false`)
-  }
-
-  const result = await query
   return safeSerialize(result)
 }
 
@@ -330,7 +355,7 @@ export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection()
 
   // Primero obtenemos los IDs de artistas de la playlist
-  const playlistResult:any = await db
+  const playlistResult = await db
     .select({ artistIds: playlists.artistIds })
     .from(playlists)
     .where(sql`${playlists.id} = ${playlistId}`)
@@ -385,8 +410,7 @@ export async function getOrCreateArtist(artistData: { spotifyId: string; name: s
   return artist
 }
 
-// Nuevas funciones para el sistema de tierlists
-
+// Modificada para trabajar con el nuevo esquema
 export async function getTierlist(userId: number, userPlaylistId: number) {
   const db = getDbConnection()
   const result = await db
@@ -402,6 +426,7 @@ export async function createTierlist(tierlistData: {
   userId: number
   userPlaylistId: number
   ratings?: Record<string, string>
+  isHidden?: boolean
 }) {
   const db = getDbConnection()
   const result = await db
@@ -410,6 +435,7 @@ export async function createTierlist(tierlistData: {
       userId: tierlistData.userId,
       userPlaylistId: tierlistData.userPlaylistId,
       ratings: tierlistData.ratings || {},
+      isHidden: tierlistData.isHidden || false,
     })
     .returning()
   return safeSerialize(result[0])
@@ -419,6 +445,7 @@ export async function getOrCreateTierlist(tierlistData: {
   userId: number
   userPlaylistId: number
   ratings?: Record<string, string>
+  isHidden?: boolean
 }) {
   let tierlist = await getTierlist(tierlistData.userId, tierlistData.userPlaylistId)
 
@@ -465,7 +492,7 @@ export async function updateTierlistRating(
     .returning()
 
   // Obtener la información de la playlist para actualizar la tierlist grupal
-  const userPlaylistInfo:any = await db
+  const userPlaylistInfo = await db
     .select({
       playlistId: userPlaylists.playlistId,
       privateName: userPlaylists.privateName,
@@ -484,7 +511,7 @@ export async function updateTierlistRating(
 
 export async function getGroupTierlist(playlistId: number, privateName?: string) {
   const db = getDbConnection()
-  let query:any = db.select().from(groupTierlists).where(sql`${groupTierlists.playlistId} = ${playlistId}`)
+  let query = db.select().from(groupTierlists).where(sql`${groupTierlists.playlistId} = ${playlistId}`)
 
   if (privateName) {
     query = query.where(sql`${groupTierlists.privateName} = ${privateName}`)
@@ -522,7 +549,7 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
   const db = getDbConnection()
 
   // Obtener todas las userPlaylists para esta playlist
-  let userPlaylistsQuery:any = db
+  let userPlaylistsQuery = db
     .select({ id: userPlaylists.id })
     .from(userPlaylists)
     .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
@@ -534,7 +561,7 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
   }
 
   const userPlaylistsResult = await userPlaylistsQuery.execute()
-  const userPlaylistIds = userPlaylistsResult.map((up:any) => up.id)
+  const userPlaylistIds = userPlaylistsResult.map((up) => up.id)
 
   if (userPlaylistIds.length === 0) {
     return null
@@ -548,7 +575,7 @@ export async function updateGroupTierlist(playlistId: number, privateName?: stri
     .execute()
 
   // Calcular los ratings agregados
-  const aggregatedRatings:any = {}
+  const aggregatedRatings = {}
   const uniqueUserIds = new Set()
 
   tierlistsResult.forEach((tierlist) => {
@@ -690,10 +717,25 @@ export async function getTierlists(userId: number) {
 export async function getPlaylistUserCount(playlistId: number): Promise<number> {
   try {
     const db = getDbConnection()
-    const result = await db
-      .select({ count: sql<number>`count(DISTINCT ${userPlaylists.userId})`.as("count") })
+
+    // Primero obtenemos todas las userPlaylists para esta playlist
+    const userPlaylistsResult = await db
+      .select({ id: userPlaylists.id })
       .from(userPlaylists)
       .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
+      .execute()
+
+    if (userPlaylistsResult.length === 0) {
+      return 0
+    }
+
+    const userPlaylistIds = userPlaylistsResult.map((up) => up.id)
+
+    // Ahora contamos los usuarios únicos que tienen tierlists para estas userPlaylists
+    const result = await db
+      .select({ count: sql<number>`count(DISTINCT ${tierlists.userId})`.as("count") })
+      .from(tierlists)
+      .where(sql`${tierlists.userPlaylistId} IN (${userPlaylistIds})`)
       .execute()
 
     if (result && result.length > 0 && result[0].count !== null) {
@@ -765,7 +807,6 @@ export async function migrateDatabase() {
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         playlist_id INTEGER NOT NULL,
-        is_hidden BOOLEAN DEFAULT FALSE,
         is_private BOOLEAN DEFAULT FALSE,
         private_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -781,6 +822,7 @@ export async function migrateDatabase() {
         user_id INTEGER NOT NULL,
         user_playlist_id INTEGER NOT NULL,
         ratings JSONB DEFAULT '{}',
+        is_hidden BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -815,7 +857,7 @@ export async function migrateDatabase() {
     `)
 
     return { success: true, message: "Base de datos creada correctamente desde cero" }
-  } catch (error:any) {
+  } catch (error) {
     console.error("Error durante la creación de la base de datos:", error)
     return { success: false, error: error.message }
   }
@@ -825,36 +867,78 @@ export async function getPlaylistRankings(playlistId: number) {
   try {
     const db = getDbConnection()
 
-    const result:any = await db
-      .select({
-        userId: tierlists.userId,
-        artistId: sql<number>`CAST(key AS INTEGER)`,
-        tierId: sql<string>`value`,
-      })
-      .from(tierlists)
-      .innerJoin(userPlaylists, sql`${tierlists.userPlaylistId} = ${userPlaylists.id}`)
+    // Primero obtenemos todas las userPlaylists para esta playlist
+    const userPlaylistsResult = await db
+      .select({ id: userPlaylists.id })
+      .from(userPlaylists)
       .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
       .execute()
 
-    const rankings = []
-    for (const row of result) {
-      if (row && row.userId) {
-        const tierlist = await getTierlist(row.userId, row.userPlaylistId)
-        if (tierlist && tierlist.ratings) {
-          for (const artistId in tierlist.ratings) {
-            rankings.push({
-              userId: row.userId,
-              artistId: Number.parseInt(artistId),
-              tierId: tierlist.ratings[artistId],
-            })
-          }
-        }
-      }
+    if (userPlaylistsResult.length === 0) {
+      return []
     }
+
+    const userPlaylistIds = userPlaylistsResult.map((up) => up.id)
+
+    // Ahora obtenemos todas las tierlists para estas userPlaylists
+    const tierlistsResult = await db
+      .select({
+        id: tierlists.id,
+        userId: tierlists.userId,
+        userPlaylistId: tierlists.userPlaylistId,
+        ratings: tierlists.ratings,
+      })
+      .from(tierlists)
+      .where(sql`${tierlists.userPlaylistId} IN (${userPlaylistIds})`)
+      .execute()
+
+    // Procesamos los ratings para convertirlos al formato esperado
+    const rankings = []
+
+    tierlistsResult.forEach((tierlist) => {
+      if (tierlist && tierlist.ratings) {
+        Object.entries(tierlist.ratings).forEach(([artistId, tierId]) => {
+          rankings.push({
+            userId: tierlist.userId,
+            artistId: Number.parseInt(artistId),
+            tierId: tierId,
+          })
+        })
+      }
+    })
 
     return safeSerialize(rankings)
   } catch (error) {
     console.error("Error al obtener rankings de la playlist:", error)
+    throw error
+  }
+}
+
+export async function hideUserPlaylist(userId: number, playlistId: number) {
+  try {
+    const db = getDbConnection()
+
+    // Find the userPlaylist
+    const userPlaylist = await db
+      .select()
+      .from(userPlaylists)
+      .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+      .execute()
+
+    if (!userPlaylist || userPlaylist.length === 0) {
+      console.warn(`No user playlist found for user ${userId} and playlist ${playlistId}`)
+      return
+    }
+
+    // Delete the userPlaylist
+    await db
+      .delete(userPlaylists)
+      .where(sql`${userPlaylists.userId} = ${userId} AND ${userPlaylists.playlistId} = ${playlistId}`)
+      .execute()
+
+    console.log(`User playlist for user ${userId} and playlist ${playlistId} has been deleted`)
+  } catch (error) {
+    console.error("Error al ocultar la playlist:", error)
     throw error
   }
 }
