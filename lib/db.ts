@@ -223,40 +223,51 @@ export async function getOrCreatePlaylist(playlistData: {
   return playlist
 }
 
+// Corregir la función getUserPlaylist para que funcione con la nueva estructura
 export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
 
-  // Construir la consulta base
-  let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${playlistId}`)
+  try {
+    // Construir la consulta base
+    let query = db.select().from(userPlaylists).where(sql`${userPlaylists.playlistId} = ${playlistId}`)
 
-  // Añadir condición para privateName
-  if (privateName) {
-    query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
-  } else {
-    query = query.where(sql`${userPlaylists.privateName} IS NULL OR ${userPlaylists.privateName} = ''`)
-  }
+    // Añadir condición para privateName
+    if (privateName) {
+      query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
+    } else {
+      query = query.where(sql`${userPlaylists.privateName} IS NULL OR ${userPlaylists.privateName} = ''`)
+    }
 
-  // Ejecutar la consulta
-  const result = await query.execute()
+    // Ejecutar la consulta
+    const result = await query.execute()
 
-  // Si no hay resultados, retornar null
-  if (!result || result.length === 0) {
+    // Si no hay resultados, retornar null
+    if (!result || result.length === 0) {
+      return null
+    }
+
+    // Verificar si el usuario está en el array usersIds
+    const userPlaylist = result[0]
+    let usersIds = userPlaylist.usersIds || []
+
+    // Asegurarse de que usersIds es un array
+    if (!Array.isArray(usersIds)) {
+      usersIds = []
+    }
+
+    // Si el usuario no está en el array, añadirlo
+    if (!usersIds.includes(userId)) {
+      usersIds.push(userId)
+
+      // Actualizar la userPlaylist
+      await db.update(userPlaylists).set({ usersIds }).where(sql`${userPlaylists.id} = ${userPlaylist.id}`).execute()
+    }
+
+    return safeSerialize(userPlaylist)
+  } catch (error) {
+    console.error("Error en getUserPlaylist:", error)
     return null
   }
-
-  // Verificar si el usuario está en el array usersIds
-  const userPlaylist = result[0]
-  const usersIds = userPlaylist.usersIds || []
-
-  // Si el usuario no está en el array, añadirlo
-  if (!usersIds.includes(userId)) {
-    usersIds.push(userId)
-
-    // Actualizar la userPlaylist
-    await db.update(userPlaylists).set({ usersIds }).where(sql`${userPlaylists.id} = ${userPlaylist.id}`).execute()
-  }
-
-  return safeSerialize(userPlaylist)
 }
 
 export async function createUserPlaylist(userPlaylistData: {
@@ -392,74 +403,82 @@ export async function hideUserTierlist(userId: number, userPlaylistId: number) {
 export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
 
-  // Usar el operador ? para verificar si userId está en el array usersIds
-  const userPlaylistsResult = await db
-    .select()
-    .from(userPlaylists)
-    .where(sql`${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
-    .execute()
+  try {
+    // Usar el operador @> para verificar si userId está en el array usersIds
+    // Necesitamos convertir el userId a string y luego a un array JSON para la comparación
+    const userIdJsonArray = JSON.stringify([userId])
 
-  if (userPlaylistsResult.length === 0) {
-    return []
-  }
-
-  // Para cada userPlaylist, verificamos si el usuario tiene una tierlist
-  const result = []
-
-  for (const userPlaylist of userPlaylistsResult) {
-    // Obtener la tierlist del usuario para esta userPlaylist
-    const tierlist = await db
-      .select({
-        id: tierlists.id,
-        isHidden: tierlists.isHidden,
-        ratings: tierlists.ratings,
-      })
-      .from(tierlists)
-      .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylist.id}`)
+    const userPlaylistsResult = await db
+      .select()
+      .from(userPlaylists)
+      .where(sql`${userPlaylists.usersIds}::jsonb @> ${userIdJsonArray}::jsonb`)
       .execute()
 
-    // Si no hay tierlist, creamos una automáticamente
-    let tierlistData = null
-    if (tierlist.length === 0) {
-      tierlistData = await getOrCreateTierlist({
-        userId,
-        userPlaylistId: userPlaylist.id,
-      })
-    } else {
-      tierlistData = tierlist[0]
-      // Si hay tierlist pero está oculta y no queremos incluir ocultas, continuamos
-      if (!includeHidden && tierlistData.isHidden) {
-        continue
+    if (userPlaylistsResult.length === 0) {
+      return []
+    }
+
+    // Para cada userPlaylist, verificamos si el usuario tiene una tierlist
+    const result = []
+
+    for (const userPlaylist of userPlaylistsResult) {
+      // Obtener la tierlist del usuario para esta userPlaylist
+      const tierlist = await db
+        .select({
+          id: tierlists.id,
+          isHidden: tierlists.isHidden,
+          ratings: tierlists.ratings,
+        })
+        .from(tierlists)
+        .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylist.id}`)
+        .execute()
+
+      // Si no hay tierlist, creamos una automáticamente
+      let tierlistData = null
+      if (tierlist.length === 0) {
+        tierlistData = await getOrCreateTierlist({
+          userId,
+          userPlaylistId: userPlaylist.id,
+        })
+      } else {
+        tierlistData = tierlist[0]
+        // Si hay tierlist pero está oculta y no queremos incluir ocultas, continuamos
+        if (!includeHidden && tierlistData.isHidden) {
+          continue
+        }
+      }
+
+      // Obtener los detalles de la playlist
+      const playlistData = await db
+        .select()
+        .from(playlists)
+        .where(sql`${playlists.id} = ${userPlaylist.playlistId}`)
+        .execute()
+
+      if (playlistData.length > 0) {
+        result.push({
+          id: playlistData[0].id,
+          spotifyId: playlistData[0].spotifyId,
+          name: playlistData[0].name,
+          description: playlistData[0].description,
+          image: playlistData[0].image,
+          artistIds: playlistData[0].artistIds,
+          isPrivate: userPlaylist.isPrivate,
+          privateName: userPlaylist.privateName,
+          userPlaylistId: userPlaylist.id,
+          tierlistId: tierlistData?.id || null,
+          isHidden: tierlistData?.isHidden || false,
+          ratings: tierlistData?.ratings || {},
+          createdAt: playlistData[0].createdAt,
+        })
       }
     }
 
-    // Obtener los detalles de la playlist
-    const playlistData = await db
-      .select()
-      .from(playlists)
-      .where(sql`${playlists.id} = ${userPlaylist.playlistId}`)
-      .execute()
-
-    if (playlistData.length > 0) {
-      result.push({
-        id: playlistData[0].id,
-        spotifyId: playlistData[0].spotifyId,
-        name: playlistData[0].name,
-        description: playlistData[0].description,
-        image: playlistData[0].image,
-        artistIds: playlistData[0].artistIds,
-        isPrivate: userPlaylist.isPrivate,
-        privateName: userPlaylist.privateName,
-        userPlaylistId: userPlaylist.id,
-        tierlistId: tierlistData?.id || null,
-        isHidden: tierlistData?.isHidden || false,
-        ratings: tierlistData?.ratings || {},
-        createdAt: playlistData[0].createdAt,
-      })
-    }
+    return safeSerialize(result)
+  } catch (error) {
+    console.error("Error en getUserPlaylists:", error)
+    return []
   }
-
-  return safeSerialize(result)
 }
 
 export async function getPlaylistArtists(playlistId: number) {
@@ -998,11 +1017,15 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
-    // Usar el operador ? para verificar si userId está en el array usersIds
+    // Usar el operador @> para verificar si userId está en el array usersIds
+    const userIdJsonArray = JSON.stringify([userId])
+
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> ${userId.toString()}`)
+      .where(
+        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> ${userIdJsonArray}::jsonb`,
+      )
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
@@ -1040,11 +1063,15 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
-    // Usar el operador ? para verificar si userId está en el array usersIds
+    // Usar el operador @> para verificar si userId está en el array usersIds
+    const userIdJsonArray = JSON.stringify([userId])
+
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> ${userId.toString()}`)
+      .where(
+        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> ${userIdJsonArray}::jsonb`,
+      )
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
@@ -1082,5 +1109,97 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
   } catch (error) {
     console.error("Error al mostrar la playlist:", error)
     throw error
+  }
+}
+
+// Función de depuración para verificar el contenido de usersIds
+export async function debugUserPlaylists(userId: number) {
+  try {
+    const db = getDbConnection()
+
+    // Obtener todas las user_playlists
+    const allUserPlaylists = await db.select().from(userPlaylists).execute()
+
+    console.log(`Total user_playlists: ${allUserPlaylists.length}`)
+
+    // Verificar cuáles contienen el userId
+    const matchingPlaylists = allUserPlaylists.filter((up) => {
+      const usersIds = Array.isArray(up.usersIds) ? up.usersIds : []
+      return usersIds.includes(userId)
+    })
+
+    console.log(`User playlists containing userId ${userId}: ${matchingPlaylists.length}`)
+
+    // Mostrar detalles de cada playlist
+    for (const up of matchingPlaylists) {
+      console.log(`UserPlaylist ID: ${up.id}, PlaylistID: ${up.playlistId}, UsersIds: ${JSON.stringify(up.usersIds)}`)
+    }
+
+    return {
+      total: allUserPlaylists.length,
+      matching: matchingPlaylists.length,
+      details: matchingPlaylists,
+    }
+  } catch (error) {
+    console.error("Error en debugUserPlaylists:", error)
+    return { error: error.message }
+  }
+}
+
+// Función para verificar y corregir los arrays usersIds
+export async function fixUserPlaylistsArrays() {
+  try {
+    const db = getDbConnection()
+
+    // Obtener todas las user_playlists
+    const allUserPlaylists = await db.select().from(userPlaylists).execute()
+
+    let fixedCount = 0
+
+    // Verificar y corregir cada userPlaylist
+    for (const up of allUserPlaylists) {
+      let needsFix = false
+      let usersIds = up.usersIds
+
+      // Verificar si usersIds es null o undefined
+      if (usersIds === null || usersIds === undefined) {
+        usersIds = []
+        needsFix = true
+      }
+
+      // Verificar si usersIds no es un array
+      if (!Array.isArray(usersIds)) {
+        try {
+          // Intentar parsearlo si es un string
+          if (typeof usersIds === "string") {
+            usersIds = JSON.parse(usersIds)
+          } else {
+            // Si no es un string, convertirlo a array
+            usersIds = []
+          }
+          needsFix = true
+        } catch (e) {
+          console.error(`Error parsing usersIds for userPlaylist ${up.id}:`, e)
+          usersIds = []
+          needsFix = true
+        }
+      }
+
+      // Si necesita corrección, actualizar la base de datos
+      if (needsFix) {
+        await db.update(userPlaylists).set({ usersIds }).where(sql`${userPlaylists.id} = ${up.id}`).execute()
+
+        fixedCount++
+      }
+    }
+
+    return {
+      total: allUserPlaylists.length,
+      fixed: fixedCount,
+      success: true,
+    }
+  } catch (error) {
+    console.error("Error en fixUserPlaylistsArrays:", error)
+    return { error: error.message, success: false }
   }
 }

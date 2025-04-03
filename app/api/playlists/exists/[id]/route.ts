@@ -23,8 +23,15 @@ export async function GET(
       );
     }
 
+    let timeoutId: NodeJS.Timeout;
+    timeoutId = setTimeout(() => {
+      new AbortController().abort();
+    }, 500);
+
     // Verificar si la playlist existe en la base de datos (consulta ligera)
     const playlist = await getPlaylistBySpotifyId(spotifyId);
+
+    clearTimeout(timeoutId);
 
     return NextResponse.json({
       exists: !!playlist,
@@ -33,5 +40,7 @@ export async function GET(
   } catch (error) {
     console.error("Error al verificar existencia de playlist:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  } finally {
+    // Close the database connection if necessary
   }
 }
