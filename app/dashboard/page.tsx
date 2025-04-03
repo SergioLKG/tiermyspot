@@ -80,7 +80,7 @@ export default function Dashboard() {
         selectedPlaylistInfo.privateName === playlist.privateName
       )
     } else {
-      return selectedPlaylistInfo.id === playlist.id
+      return selectedPlaylistInfo.userPlaylistId === playlist.userPlaylistId && selectedPlaylistInfo.id === playlist.id
     }
   }
 
