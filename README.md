@@ -1,4 +1,4 @@
-# TierMySpot ![logo-tiermyspot](/public/logo-readme.svg)
+# TierMySpot [![logo-tiermyspot](/public/logo-readme.svg)](https://tiermyspot.vercel.app/)
 
 TierMySpot es una plataforma que te permite crear **tierlists** de tus artistas favoritos de **Spotify**. Puedes importar tus playlists y clasificarlas de manera individual o junto a tus amigos.
 
