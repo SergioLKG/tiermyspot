@@ -57,7 +57,7 @@ export function Header({ activePage = "" }) {
                   src={session.user.image || "/placeholder.svg"}
                   alt={session.user.name || "Usuario"}
                   fill
-                  className="object-cover"
+                  className="scale-150 object-cover"
                 />
               </div>
               <span className="text-sm font-medium hidden sm:inline-block">{session.user.name || "UnknownUser"}</span>
