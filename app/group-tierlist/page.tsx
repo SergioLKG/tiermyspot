@@ -98,7 +98,7 @@ export default function GroupTierlistPage() {
         }
 
         const playlistId = selectedPlaylist.id
-        const privateName = selectedPlaylist.privatePlaylistName || ""
+        const privateName = selectedPlaylist.privateName || ""
 
         // Obtener datos de la tierlist grupal
         const response = await fetch(`/api/group-tierlists?playlistId=${playlistId}&privateName=${privateName}`)
@@ -113,8 +113,8 @@ export default function GroupTierlistPage() {
         // Actualizar estado con los datos recibidos
         setPlaylistId(data.playlist.id)
         setPlaylistName(data.playlist.name)
-        if (selectedPlaylist.isPrivate && selectedPlaylist.privatePlaylistName) {
-          setPlaylistName(`${data.playlist.name} (${selectedPlaylist.privatePlaylistName})`)
+        if (selectedPlaylist.isPrivate && selectedPlaylist.privateName) {
+          setPlaylistName(`${data.playlist.name} (${selectedPlaylist.privateName})`)
         }
         setPlaylistImage(data.playlist.image)
         setArtists(data.playlist.artists)

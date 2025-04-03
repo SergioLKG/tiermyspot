@@ -77,7 +77,7 @@ export default function Dashboard() {
     if (playlist.isPrivate) {
       return (
         selectedPlaylistInfo.id === playlist.id &&
-        selectedPlaylistInfo.privatePlaylistName === playlist.privatePlaylistName
+        selectedPlaylistInfo.privateName === playlist.privateName
       )
     } else {
       return selectedPlaylistInfo.id === playlist.id
@@ -104,7 +104,7 @@ export default function Dashboard() {
       name: playlist.name,
       image: playlist.image,
       isPrivate: playlist.isPrivate,
-      privatePlaylistName: playlist.privateName, // Corregido de privatePlaylistName a privateName
+      privateName: playlist.privateName, // Corregido de privateName a privateName
       userPlaylistId: playlist.userPlaylistId, // Añadido para tener referencia directa
     })
 
@@ -114,7 +114,7 @@ export default function Dashboard() {
       name: playlist.name,
       image: playlist.image,
       isPrivate: playlist.isPrivate,
-      privatePlaylistName: playlist.privateName,
+      privateName: playlist.privateName,
       userPlaylistId: playlist.userPlaylistId,
     })
 
@@ -293,7 +293,7 @@ export default function Dashboard() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {privatePlaylists.map((playlist) => (
-                  <Card key={`${playlist.id}-${playlist.privatePlaylistName}`} className="overflow-hidden">
+                  <Card key={`${playlist.id}-${playlist.privateName}`} className="overflow-hidden">
                     <div className="relative h-32">
                       <Image
                         src={playlist.image || "/placeholder.svg"}
@@ -304,8 +304,8 @@ export default function Dashboard() {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
                         <div>
                           <h3 className="font-bold text-white">{playlist.name}</h3>
-                          {playlist.privatePlaylistName && (
-                            <p className="text-xs text-white/80">({playlist.privatePlaylistName})</p>
+                          {playlist.privateName && (
+                            <p className="text-xs text-white/80">({playlist.privateName})</p>
                           )}
                         </div>
                       </div>
@@ -317,7 +317,7 @@ export default function Dashboard() {
                           setConfirmDialog({
                             open: true,
                             playlistId: playlist.id,
-                            playlistName: playlist.privatePlaylistName || playlist.name,
+                            playlistName: playlist.privateName || playlist.name,
                           })
                         }
                       >

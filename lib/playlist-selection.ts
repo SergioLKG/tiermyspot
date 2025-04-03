@@ -23,7 +23,7 @@ export function setSelectedPlaylist(playlistData: {
   name: string
   image?: string
   isPrivate?: boolean
-  privatePlaylistName?: string
+  privateName?: string
   userPlaylistId?: string
 }) {
   // Primero eliminar la cookie existente para evitar problemas

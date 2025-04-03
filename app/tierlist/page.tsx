@@ -83,8 +83,8 @@ export default function TierlistPage() {
 
         // Actualizar datos de la playlist
         setPlaylistName(
-          selectedPlaylist.isPrivate && selectedPlaylist.privatePlaylistName
-            ? `${playlistData.name} (${selectedPlaylist.privatePlaylistName})`
+          selectedPlaylist.isPrivate && selectedPlaylist.privateName
+            ? `${playlistData.name} (${selectedPlaylist.privateName})`
             : playlistData.name,
         )
         setPlaylistImage(playlistData.image)
@@ -100,7 +100,7 @@ export default function TierlistPage() {
         // Obtener tierlist del usuario
         setLoadingMessage("Cargando tus rankings...")
         const tierlistData = await cachedFetch(
-          `/api/tierlists?playlistId=${playlistIdValue}&privateName=${selectedPlaylist.privatePlaylistName || ""}`,
+          `/api/tierlists?playlistId=${playlistIdValue}&privateName=${selectedPlaylist.privateName || ""}`,
         )
 
         if (tierlistData && !tierlistData.error) {
@@ -156,7 +156,7 @@ export default function TierlistPage() {
           playlistId,
           artistId,
           tierId: rankings[artistId] === tierId ? null : tierId,
-          privateName: getSelectedPlaylist()?.privatePlaylistName,
+          privateName: getSelectedPlaylist()?.privateName,
         }),
       })
 

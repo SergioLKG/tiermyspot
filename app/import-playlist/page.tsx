@@ -73,7 +73,7 @@ export default function ImportPlaylistPage() {
         name: data.playlistName,
         image: data.playlistImage,
         isPrivate,
-        privatePlaylistName: isPrivate ? privateName : "",
+        privateName: isPrivate ? privateName : "",
         userPlaylistId: data.userPlaylistId,
       })
 

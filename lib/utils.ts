@@ -26,7 +26,7 @@ export function getSelectedPlaylist() {
       name: playlist.name || "",
       image: playlist.image || "",
       isPrivate: !!playlist.isPrivate,
-      privatePlaylistName: playlist.privatePlaylistName || playlist.privateName || "",
+      privateName: playlist.privateName || playlist.privateName || "",
       userPlaylistId: playlist.userPlaylistId || null,
     }
   } catch (error) {

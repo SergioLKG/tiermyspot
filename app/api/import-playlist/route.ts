@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const { playlistId, isPrivate, privatePlaylistName } = await request.json()
+    const { playlistId, isPrivate, privateName } = await request.json()
 
     if (!playlistId) {
       return NextResponse.json({ error: "ID de playlist no proporcionado" }, { status: 400 })
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         playlistId: existingPlaylist.id,
         isPrivate: isPrivate || false,
-        privateName: isPrivate ? privatePlaylistName : undefined,
+        privateName: isPrivate ? privateName : undefined,
       })
 
       // Si la playlist estaba oculta, mostrarla
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         tierlistId: tierlist.id,
         userPlaylistId: userPlaylist.id,
         isPrivate: isPrivate || false,
-        privatePlaylistName: privatePlaylistName,
+        privateName: privateName,
         isNew: false,
       })
     }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       playlistId: playlist.id,
       isPrivate: isPrivate || false,
-      privateName: isPrivate ? privatePlaylistName : undefined,
+      privateName: isPrivate ? privateName : undefined,
     })
 
     // Guardar artistas en la base de datos
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       tierlistId: tierlist.id,
       userPlaylistId: userPlaylist.id,
       isPrivate: isPrivate || false,
-      privatePlaylistName: privatePlaylistName,
+      privateName: privateName,
       isNew: true,
     })
   } catch (error: any) {
