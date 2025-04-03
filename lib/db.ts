@@ -235,6 +235,7 @@ export async function getUserPlaylist(userId: number, playlistId: number, privat
     if (privateName) {
       query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
     } else {
+      // Si no hay privateName, buscar donde sea NULL o vacío
       query = query.where(sql`${userPlaylists.privateName} IS NULL OR ${userPlaylists.privateName} = ''`)
     }
 
@@ -481,6 +482,7 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
   }
 }
 
+// Corregir la función getPlaylistArtists para manejar correctamente los tipos
 export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection()
 
@@ -495,11 +497,26 @@ export async function getPlaylistArtists(playlistId: number) {
     return []
   }
 
-  // Luego obtenemos los detalles de los artistas
+  // Luego obtenemos los detalles de los artistas uno por uno
   const artistIds = playlistResult[0].artistIds
-  const result = await db.select().from(artists).where(sql`${artists.spotifyId} IN (${artistIds})`).execute()
+  const artists = []
 
-  return safeSerialize(result)
+  // Asegurarse de que artistIds es un array
+  const artistIdsArray = Array.isArray(artistIds) ? artistIds : [artistIds]
+
+  for (const spotifyId of artistIdsArray) {
+    const artistResult = await db
+      .select()
+      .from(artists)
+      .where(sql`${artists.spotifyId} = ${spotifyId.toString()}`)
+      .execute()
+
+    if (artistResult.length > 0) {
+      artists.push(artistResult[0])
+    }
+  }
+
+  return safeSerialize(artists)
 }
 
 export async function getArtistBySpotifyId(spotifyId: string) {
@@ -786,6 +803,7 @@ export async function updateGroupTierlist(userPlaylistId: number) {
   return safeSerialize(result[0])
 }
 
+// Corregir la función getFullPlaylistData para manejar correctamente los tipos
 export async function getFullPlaylistData(playlistId: number) {
   const db = getDbConnection()
   const playlistData = await db.select().from(playlists).where(sql`${playlists.id} = ${playlistId}`)
@@ -795,7 +813,31 @@ export async function getFullPlaylistData(playlistId: number) {
   }
 
   const playlist = playlistData[0]
-  const artistsData = await getPlaylistArtists(playlistId)
+
+  // Obtener los artistas de la playlist
+  const artistIds = playlist.artistIds || []
+  let artistsData = []
+
+  if (artistIds && artistIds.length > 0) {
+    // Asegurarse de que artistIds es un array de strings
+    const artistIdsArray = Array.isArray(artistIds) ? artistIds : [artistIds]
+
+    // Obtener los artistas uno por uno para evitar problemas de tipo
+    artistsData = await Promise.all(
+      artistIdsArray.map(async (spotifyId) => {
+        const artistResult = await db
+          .select()
+          .from(artists)
+          .where(sql`${artists.spotifyId} = ${spotifyId.toString()}`)
+          .execute()
+
+        return artistResult.length > 0 ? artistResult[0] : null
+      }),
+    )
+
+    // Filtrar los nulos
+    artistsData = artistsData.filter((artist) => artist !== null)
+  }
 
   return {
     ...playlist,

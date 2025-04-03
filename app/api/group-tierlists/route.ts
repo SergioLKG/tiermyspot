@@ -39,7 +39,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
     }
 
-    const userPlaylist = await getUserPlaylist(user.id, playlistId, privateName)
+    // Convertir privateName a string o undefined para evitar problemas de tipo
+    const privateNameStr = privateName ? String(privateName) : undefined
+
+    const userPlaylist = await getUserPlaylist(user.id, playlistId, privateNameStr)
 
     if (!userPlaylist) {
       return NextResponse.json({ error: "UserPlaylist no encontrada" }, { status: 404 })

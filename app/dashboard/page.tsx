@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { getSelectedPlaylist, setSelectedPlaylist } from "@/lib/playlist-selection"
+import { getSelectedPlaylist, setSelectedPlaylist, clearSelectedPlaylist } from "@/lib/playlist-selection"
 
 export default function Dashboard() {
   const { data: session, status } = useSession()
@@ -94,6 +94,9 @@ export default function Dashboard() {
         }
       })
     }
+
+    // Primero limpiar la cookie existente
+    clearSelectedPlaylist()
 
     // Guardar la playlist seleccionada en una cookie
     setSelectedPlaylist({

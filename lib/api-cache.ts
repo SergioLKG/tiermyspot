@@ -17,18 +17,24 @@ export async function cachedFetch(url: string, options?: RequestInit) {
   }
 
   // Si no hay datos en caché o han expirado, hacer la solicitud
-  return fetch(url, options)
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error(`Error en la solicitud: ${res.status} ${res.statusText}`)
-      }
-      return res.json()
-    })
-    .then((data) => {
-      // Guardar en caché
-      apiCache.set(cacheKey, { data, timestamp: Date.now() })
-      return data
-    })
+  try {
+    const response = await fetch(url, options)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`Error en la solicitud a ${url}:`, errorText)
+      throw new Error(`Error en la solicitud: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // Guardar en caché
+    apiCache.set(cacheKey, { data, timestamp: Date.now() })
+    return data
+  } catch (error) {
+    console.error(`Error en cachedFetch para ${url}:`, error)
+    throw error
+  }
 }
 
 // Limpiar caché para una URL específica
@@ -38,4 +44,9 @@ export function invalidateCache(url: string) {
       apiCache.delete(key)
     }
   }
+}
+
+// Limpiar toda la caché
+export function clearCache() {
+  apiCache.clear()
 }
