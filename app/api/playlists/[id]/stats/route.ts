@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "../../../auth/[...nextauth]/route"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { getPlaylistUserCount } from "@/lib/db"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {

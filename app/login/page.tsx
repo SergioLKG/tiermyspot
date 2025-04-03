@@ -16,8 +16,8 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   let error = searchParams.get("error")
-  if (error && (error.includes('403') || error.includes('Forbidden'))) {
-    error = 'No tienes acceso a esta aplicación. Por favor, contacta con un administrador para ser añadido como tester.';
+  if (error && (error.includes("403") || error.includes("Forbidden"))) {
+    error = "No tienes acceso a esta aplicación. Por favor, contacta con un administrador para ser añadido como tester."
   }
   const [redirectAttempted, setRedirectAttempted] = useState(false)
 
@@ -157,4 +157,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

@@ -53,6 +53,10 @@ export default function Dashboard() {
 
         const data = await response.json()
 
+        if(!data) {
+          router.push("/import-playlist")
+        }
+        
         setPublicPlaylists(data.publicPlaylists || [])
         setPrivatePlaylists(data.privatePlaylists || [])
       } catch (error) {
@@ -66,7 +70,7 @@ export default function Dashboard() {
   }, [router, session, status])
 
   // Función para activar una playlist
-  const activatePlaylist = (playlist) => {
+  const activatePlaylist = (playlist:any) => {
     // Limpiar cualquier caché relacionada con tierlists
     if (typeof window !== "undefined") {
       Object.keys(sessionStorage).forEach((key) => {
