@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import Image from "next/image"
-import { useSession, signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { LogOut, Import } from "lucide-react"
-import { Logo } from "@/components/logo"
+import Link from "next/link";
+import Image from "next/image";
+import { useSession, signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { LogOut, Import } from "lucide-react";
+import { Logo } from "@/components/logo";
 
 export function Header({ activePage = "" }) {
-  const { data: session } = useSession()
+  const { data: session } = useSession();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -18,7 +18,9 @@ export function Header({ activePage = "" }) {
           <Link
             href="/dashboard"
             className={`text-sm font-medium transition-colors hover:text-primary ${
-              activePage === "dashboard" ? "text-primary" : "text-muted-foreground"
+              activePage === "dashboard"
+                ? "text-primary"
+                : "text-muted-foreground"
             }`}
           >
             Dashboard
@@ -26,7 +28,9 @@ export function Header({ activePage = "" }) {
           <Link
             href="/tierlist"
             className={`text-sm font-medium transition-colors hover:text-primary ${
-              activePage === "tierlist" ? "text-primary" : "text-muted-foreground"
+              activePage === "tierlist"
+                ? "text-primary"
+                : "text-muted-foreground"
             }`}
           >
             Mi Tierlist
@@ -45,7 +49,11 @@ export function Header({ activePage = "" }) {
               activePage === "import" ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
+            >
               <Import className="h-4 w-4" />
               <span className="hidden sm:inline-block">Importar Playlist</span>
             </Button>
@@ -57,10 +65,16 @@ export function Header({ activePage = "" }) {
                   src={session.user.image || "/placeholder.svg"}
                   alt={session.user.name || "Usuario"}
                   fill
-                  className="scale-150 object-cover"
+                  className={
+                    session.user.image
+                      ? "scale-150 object-cover"
+                      : "object-cover"
+                  }
                 />
               </div>
-              <span className="text-sm font-medium hidden sm:inline-block">{session.user.name || "UnknownUser"}</span>
+              <span className="text-sm font-medium hidden sm:inline-block">
+                {session.user.name || "UnknownUser"}
+              </span>
             </div>
           )}
           {session && (
@@ -77,6 +91,5 @@ export function Header({ activePage = "" }) {
         </nav>
       </div>
     </header>
-  )
+  );
 }
-
