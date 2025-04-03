@@ -67,8 +67,8 @@ export function Header({ activePage = "" }) {
                   fill
                   className={
                     session.user.image
-                      ? "scale-150 object-cover"
-                      : "object-cover"
+                      ? "object-cover"
+                      : "scale-150 object-cover"
                   }
                 />
               </div>
