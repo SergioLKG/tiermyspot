@@ -50,7 +50,7 @@ export function Header({ activePage = "" }) {
               <span className="hidden sm:inline-block">Importar Playlist</span>
             </Button>
           </Link>
-          {session?.user?.image && (
+          {session?.user && (
             <div className="flex items-center gap-2">
               <div className="relative h-8 w-8 overflow-hidden rounded-full border">
                 <Image
