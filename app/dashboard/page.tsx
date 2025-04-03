@@ -349,34 +349,6 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
-          {/* Botón para importar nueva playlist */}
-          <div className="mt-4">
-            <Card className="flex items-center justify-center h-full min-h-[200px] border-dashed">
-              <CardContent className="text-center">
-                <Link href="/import-playlist">
-                  <Button variant="outline" className="flex flex-col h-auto py-4 px-6">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-6 w-6 mb-2"
-                    >
-                      <path d="M5 12h14" />
-                      <path d="M12 5v14" />
-                    </svg>
-                    <span>Importar Nueva Playlist</span>
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </main>
 
