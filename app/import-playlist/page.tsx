@@ -1,49 +1,61 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Import, AlertTriangle } from "lucide-react"
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { setSelectedPlaylist } from "@/lib/playlist-selection"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Import, AlertTriangle } from "lucide-react";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+import { setSelectedPlaylist } from "@/lib/playlist-selection";
+import { extractPlaylistId } from "@/lib/spotify-api";
 
 export default function ImportPlaylistPage() {
-  const { data: session, status } = useSession()
-  const [playlistUrl, setPlaylistUrl] = useState("")
-  const [isPrivate, setIsPrivate] = useState(false)
-  const [privateName, setPrivateName] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-  const router = useRouter()
+  const { data: session, status } = useSession();
+  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [privateName, setPrivateName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const router = useRouter();
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login")
+      router.push("/login");
     }
-  }, [status, router])
+  }, [status, router]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    setSuccess(false)
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+    setSuccess(false);
 
     try {
       // Validar URL
       if (!playlistUrl.trim()) {
-        throw new Error("Por favor, introduce una URL de playlist válida")
+        throw new Error("Por favor, introduce una URL de playlist válida");
       }
 
       // Validar nombre privado si es privado
       if (isPrivate && !privateName.trim()) {
-        throw new Error("Por favor, introduce un nombre para tu playlist privada")
+        throw new Error(
+          "Por favor, introduce un nombre para tu playlist privada"
+        );
+      }
+
+      // Extraer ID de la playlist
+      const playlistId = extractPlaylistId(playlistUrl);
+
+      if (!playlistId) {
+        throw new Error(
+          "URL de playlist inválida. Por favor, introduce un enlace de compartición de Spotify válido."
+        );
       }
 
       // Enviar solicitud
@@ -54,18 +66,19 @@ export default function ImportPlaylistPage() {
         },
         body: JSON.stringify({
           playlistUrl,
+          playlistId,
           isPrivate,
           privateName: isPrivate ? privateName : "",
         }),
-      })
+      });
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Error al importar la playlist")
+        const data = await response.json();
+        throw new Error(data.error || "Error al importar la playlist");
       }
 
-      const data = await response.json()
-      setSuccess(true)
+      const data = await response.json();
+      setSuccess(true);
 
       // Guardar la playlist seleccionada en una cookie
       setSelectedPlaylist({
@@ -75,19 +88,19 @@ export default function ImportPlaylistPage() {
         isPrivate,
         privateName: isPrivate ? privateName : "",
         userPlaylistId: data.userPlaylistId,
-      })
+      });
 
       // Redirigir a la página de tierlist después de un breve retraso
       setTimeout(() => {
-        router.push("/tierlist")
-      }, 1500)
+        router.push("/tierlist");
+      }, 1500);
     } catch (error) {
-      console.error("Error:", error)
-      setError(error.message)
+      console.error("Error:", error);
+      setError(error.message);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Mostrar pantalla de carga mientras se verifica la sesión
   if (status === "loading") {
@@ -98,12 +111,12 @@ export default function ImportPlaylistPage() {
           <p className="text-sm text-muted-foreground">Cargando...</p>
         </div>
       </div>
-    )
+    );
   }
 
   // Si no hay sesión, redirigir al login
   if (!session) {
-    return null // La redirección se maneja en el useEffect
+    return null; // La redirección se maneja en el useEffect
   }
 
   return (
@@ -132,7 +145,9 @@ export default function ImportPlaylistPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="playlistUrl">URL de la Playlist de Spotify</Label>
+                <Label htmlFor="playlistUrl">
+                  URL de la Playlist de Spotify
+                </Label>
                 <Input
                   id="playlistUrl"
                   type="text"
@@ -142,7 +157,9 @@ export default function ImportPlaylistPage() {
                   disabled={isLoading}
                   required
                 />
-                <p className="text-xs text-muted-foreground">Pega la URL completa de una playlist pública de Spotify</p>
+                <p className="text-xs text-muted-foreground">
+                  Pega la URL completa de una playlist pública de Spotify
+                </p>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -162,7 +179,9 @@ export default function ImportPlaylistPage() {
 
               {isPrivate && (
                 <div className="space-y-2">
-                  <Label htmlFor="privateName">Nombre de tu playlist privada</Label>
+                  <Label htmlFor="privateName">
+                    Nombre de tu playlist privada
+                  </Label>
                   <Input
                     id="privateName"
                     type="text"
@@ -172,7 +191,9 @@ export default function ImportPlaylistPage() {
                     disabled={isLoading}
                     required={isPrivate}
                   />
-                  <p className="text-xs text-muted-foreground">Este nombre solo será visible para ti</p>
+                  <p className="text-xs text-muted-foreground">
+                    Este nombre solo será visible para ti
+                  </p>
                 </div>
               )}
 
@@ -196,5 +217,5 @@ export default function ImportPlaylistPage() {
 
       <Footer />
     </div>
-  )
+  );
 }
