@@ -24,7 +24,7 @@ export function setSelectedPlaylist(playlistData: {
   image?: string;
   isPrivate?: boolean;
   privatePlaylistName?: string;
-  userPlaylistId: number | string | null; // Añadido para tener referencia directa
+  userPlaylistId?: number | string; // Añadido para tener referencia directa
 }) {
   Cookies.set(SELECTED_PLAYLIST_COOKIE, JSON.stringify(playlistData), {
     expires: 30,

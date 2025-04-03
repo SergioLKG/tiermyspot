@@ -7,7 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Import, X, AlertTriangle } from "lucide-react"
+import { Import, X, AlertTriangle, Check } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import {
@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { setSelectedPlaylist } from "@/lib/playlist-selection"
+import { getSelectedPlaylist, setSelectedPlaylist } from "@/lib/playlist-selection"
 
 export default function Dashboard() {
   const { data: session, status } = useSession()
@@ -31,6 +31,7 @@ export default function Dashboard() {
     playlistName: "",
   })
   const router = useRouter()
+  const [selectedPlaylistInfo, setSelectedPlaylistInfo] = useState(null)
 
   useEffect(() => {
     // Check if user is logged in
@@ -38,6 +39,10 @@ export default function Dashboard() {
       router.push("/login")
       return
     }
+
+    // Obtener la playlist seleccionada actual
+    const currentSelectedPlaylist = getSelectedPlaylist()
+    setSelectedPlaylistInfo(currentSelectedPlaylist)
 
     const fetchPlaylists = async () => {
       if (status !== "authenticated" || !session) return
@@ -65,6 +70,20 @@ export default function Dashboard() {
     fetchPlaylists()
   }, [router, session, status])
 
+  // Función para verificar si una playlist está seleccionada
+  const isPlaylistSelected = (playlist) => {
+    if (!selectedPlaylistInfo) return false
+
+    if (playlist.isPrivate) {
+      return (
+        selectedPlaylistInfo.id === playlist.id &&
+        selectedPlaylistInfo.privatePlaylistName === playlist.privatePlaylistName
+      )
+    } else {
+      return selectedPlaylistInfo.id === playlist.id
+    }
+  }
+
   // Función para activar una playlist
   const activatePlaylist = (playlist) => {
     // Limpiar cualquier caché relacionada con tierlists
@@ -84,6 +103,16 @@ export default function Dashboard() {
       isPrivate: playlist.isPrivate,
       privatePlaylistName: playlist.privateName, // Corregido de privatePlaylistName a privateName
       userPlaylistId: playlist.userPlaylistId, // Añadido para tener referencia directa
+    })
+
+    // Actualizar el estado local
+    setSelectedPlaylistInfo({
+      id: playlist.id,
+      name: playlist.name,
+      image: playlist.image,
+      isPrivate: playlist.isPrivate,
+      privatePlaylistName: playlist.privateName,
+      userPlaylistId: playlist.userPlaylistId,
     })
 
     // Redirigir a la página de tierlist
@@ -223,8 +252,20 @@ export default function Dashboard() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">Playlist pública</div>
-                        <Button size="sm" onClick={() => activatePlaylist(playlist)}>
-                          Seleccionar
+                        <Button
+                          size="sm"
+                          onClick={() => activatePlaylist(playlist)}
+                          variant={isPlaylistSelected(playlist) ? "default" : "outline"}
+                          className={isPlaylistSelected(playlist) ? "bg-green-600 hover:bg-green-700" : ""}
+                        >
+                          {isPlaylistSelected(playlist) ? (
+                            <span className="flex items-center">
+                              <Check className="h-4 w-4 mr-1" />
+                              Seleccionada
+                            </span>
+                          ) : (
+                            "Seleccionar"
+                          )}
                         </Button>
                       </div>
                     </CardContent>
@@ -283,8 +324,20 @@ export default function Dashboard() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">Playlist privada</div>
-                        <Button size="sm" onClick={() => activatePlaylist(playlist)}>
-                          Seleccionar
+                        <Button
+                          size="sm"
+                          onClick={() => activatePlaylist(playlist)}
+                          variant={isPlaylistSelected(playlist) ? "default" : "outline"}
+                          className={isPlaylistSelected(playlist) ? "bg-green-600 hover:bg-green-700" : ""}
+                        >
+                          {isPlaylistSelected(playlist) ? (
+                            <span className="flex items-center">
+                              <Check className="h-4 w-4 mr-1" />
+                              Seleccionada
+                            </span>
+                          ) : (
+                            "Seleccionar"
+                          )}
                         </Button>
                       </div>
                     </CardContent>

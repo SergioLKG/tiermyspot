@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Users, AlertTriangle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { getSelectedPlaylist } from "@/lib/utils"
+import { getSelectedPlaylist } from "@/lib/playlist-selection"
 import { ArtistCard } from "@/components/artist-card"
+import { NoPlaylistModal } from "@/components/no-playlist-modal"
 
 // Default tiers
 const TIERS = [
@@ -66,6 +67,7 @@ export default function GroupTierlistPage() {
   const [userCount, setUserCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -88,9 +90,10 @@ export default function GroupTierlistPage() {
         // Obtener la playlist seleccionada de la cookie
         const selectedPlaylist = getSelectedPlaylist()
 
-        // Si no hay playlist seleccionada, redirigir al dashboard
+        // Si no hay playlist seleccionada, mostrar el modal
         if (!selectedPlaylist) {
-          router.push("/dashboard")
+          setShowNoPlaylistModal(true)
+          setIsLoading(false)
           return
         }
 
@@ -135,14 +138,6 @@ export default function GroupTierlistPage() {
     }
 
     fetchData()
-
-    // Limpiar audio al desmontar
-    return () => {
-      if (audio) {
-        audio.pause()
-        audio.src = ""
-      }
-    }
   }, [router, session, status])
 
   const handlePlayTrack = (artist: any, trackIndex: any) => {
@@ -392,6 +387,9 @@ export default function GroupTierlistPage() {
       </main>
 
       <Footer />
+
+      {/* Modal para cuando no hay playlist seleccionada */}
+      <NoPlaylistModal open={showNoPlaylistModal} onOpenChange={setShowNoPlaylistModal} />
     </div>
   )
 }

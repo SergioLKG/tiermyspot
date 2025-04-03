@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { getSelectedPlaylist } from "@/lib/utils"
+import { getSelectedPlaylist } from "@/lib/playlist-selection"
 import { ArtistCard } from "@/components/artist-card"
 import { cachedFetch } from "@/lib/api-cache"
+import { NoPlaylistModal } from "@/components/no-playlist-modal"
 
 // Default tiers
 const TIERS = [
@@ -37,6 +38,7 @@ export default function TierlistPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [loadingMessage, setLoadingMessage] = useState("")
+  const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -59,9 +61,10 @@ export default function TierlistPage() {
         // Obtener la playlist seleccionada de la cookie
         const selectedPlaylist = getSelectedPlaylist()
 
-        // Si no hay playlist seleccionada, redirigir al dashboard
+        // Si no hay playlist seleccionada, mostrar el modal
         if (!selectedPlaylist) {
-          router.push("/dashboard")
+          setShowNoPlaylistModal(true)
+          setIsLoading(false)
           return
         }
 
@@ -431,6 +434,9 @@ export default function TierlistPage() {
       </main>
 
       <Footer />
+
+      {/* Modal para cuando no hay playlist seleccionada */}
+      <NoPlaylistModal open={showNoPlaylistModal} onOpenChange={setShowNoPlaylistModal} />
     </div>
   )
 }
