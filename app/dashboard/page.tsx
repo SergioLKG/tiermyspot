@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { setSelectedPlaylist } from "@/lib/utils"
+import { setSelectedPlaylist } from "@/lib/playlist-selection"
 
 export default function Dashboard() {
   const { data: session, status } = useSession()
