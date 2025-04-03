@@ -393,12 +393,13 @@ export async function hideUserTierlist(userId: number, userPlaylistId: number) {
 export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
 
-  // Obtener todas las userPlaylists donde el usuario está en usersIds
-  // Usar una expresión SQL más explícita para verificar si el userId está en el array
+  // Convertir explícitamente userId a string para jsonb_build_array
+  const userIdStr = userId.toString()
+
   const userPlaylistsResult = await db
     .select()
     .from(userPlaylists)
-    .where(sql`${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userId})`)
+    .where(sql`${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userIdStr})`)
     .execute()
 
   if (userPlaylistsResult.length === 0) {
@@ -995,13 +996,14 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
-    // Encontrar todas las userPlaylists del usuario para esta playlist
-    // Usar una expresión SQL más explícita
+    // Convertir explícitamente userId a string para jsonb_build_array
+    const userIdStr = userId.toString()
+
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
       .where(
-        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userId})`,
+        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userIdStr})`,
       )
       .execute()
 
@@ -1042,12 +1044,14 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
     const db = getDbConnection()
 
     // Encontrar todas las userPlaylists del usuario para esta playlist
-    // Usar una expresión SQL más explícita
+    // Convertir explícitamente userId a string para jsonb_build_array
+    const userIdStr = userId.toString()
+
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
       .where(
-        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userId})`,
+        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userIdStr})`,
       )
       .execute()
 
