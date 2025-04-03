@@ -1002,8 +1002,7 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
-      .where(sql`${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
+      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
@@ -1045,8 +1044,7 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
-      .where(sql`${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
+      .where(sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
