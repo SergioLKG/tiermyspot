@@ -393,13 +393,11 @@ export async function hideUserTierlist(userId: number, userPlaylistId: number) {
 export async function getUserPlaylists(userId: number, includeHidden = false) {
   const db = getDbConnection()
 
-  // Convertir explícitamente userId a string para jsonb_build_array
-  const userIdStr = userId.toString()
-
+  // Usar el operador ? para verificar si userId está en el array usersIds
   const userPlaylistsResult = await db
     .select()
     .from(userPlaylists)
-    .where(sql`${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userIdStr})`)
+    .where(sql`${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
     .execute()
 
   if (userPlaylistsResult.length === 0) {
@@ -996,15 +994,12 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
-    // Convertir explícitamente userId a string para jsonb_build_array
-    const userIdStr = userId.toString()
-
+    // Usar el operador ? para verificar si userId está en el array usersIds
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(
-        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userIdStr})`,
-      )
+      .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
+      .where(sql`${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
@@ -1043,16 +1038,12 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()
 
-    // Encontrar todas las userPlaylists del usuario para esta playlist
-    // Convertir explícitamente userId a string para jsonb_build_array
-    const userIdStr = userId.toString()
-
+    // Usar el operador ? para verificar si userId está en el array usersIds
     const userPlaylistsResult = await db
       .select()
       .from(userPlaylists)
-      .where(
-        sql`${userPlaylists.playlistId} = ${playlistId} AND ${userPlaylists.usersIds}::jsonb @> jsonb_build_array(${userIdStr})`,
-      )
+      .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
+      .where(sql`${userPlaylists.usersIds}::jsonb ? ${userId.toString()}`)
       .execute()
 
     if (!userPlaylistsResult || userPlaylistsResult.length === 0) {
