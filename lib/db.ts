@@ -223,7 +223,6 @@ export async function getOrCreatePlaylist(playlistData: {
   return playlist
 }
 
-// Corregir la función getUserPlaylist para que funcione con la nueva estructura
 export async function getUserPlaylist(userId: number, playlistId: number, privateName?: string) {
   const db = getDbConnection()
 
@@ -234,7 +233,7 @@ export async function getUserPlaylist(userId: number, playlistId: number, privat
   if (privateName) {
     query = query.where(sql`${userPlaylists.privateName} = ${privateName}`)
   } else {
-    query = query.where(sql`${userPlaylists.privateName} IS NULL`)
+    query = query.where(sql`${userPlaylists.privateName} IS NULL OR ${userPlaylists.privateName} = ''`)
   }
 
   // Ejecutar la consulta
@@ -413,21 +412,25 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
       .select({
         id: tierlists.id,
         isHidden: tierlists.isHidden,
+        ratings: tierlists.ratings,
       })
       .from(tierlists)
       .where(sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylist.id}`)
       .execute()
 
     // Si no hay tierlist, creamos una automáticamente
+    let tierlistData = null
     if (tierlist.length === 0) {
-      await getOrCreateTierlist({
+      tierlistData = await getOrCreateTierlist({
         userId,
         userPlaylistId: userPlaylist.id,
       })
-    }
-    // Si hay tierlist pero está oculta y no queremos incluir ocultas, continuamos
-    else if (!includeHidden && tierlist[0].isHidden) {
-      continue
+    } else {
+      tierlistData = tierlist[0]
+      // Si hay tierlist pero está oculta y no queremos incluir ocultas, continuamos
+      if (!includeHidden && tierlistData.isHidden) {
+        continue
+      }
     }
 
     // Obtener los detalles de la playlist
@@ -448,8 +451,9 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
         isPrivate: userPlaylist.isPrivate,
         privateName: userPlaylist.privateName,
         userPlaylistId: userPlaylist.id,
-        tierlistId: tierlist.length > 0 ? tierlist[0].id : null,
-        isHidden: tierlist.length > 0 ? tierlist[0].isHidden : false,
+        tierlistId: tierlistData?.id || null,
+        isHidden: tierlistData?.isHidden || false,
+        ratings: tierlistData?.ratings || {},
         createdAt: playlistData[0].createdAt,
       })
     }
@@ -1033,7 +1037,6 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
   }
 }
 
-// Corregir la función unhideUserTierlists
 export async function unhideUserTierlists(userId: number, playlistId: number) {
   try {
     const db = getDbConnection()

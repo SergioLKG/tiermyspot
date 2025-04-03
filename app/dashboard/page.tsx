@@ -53,10 +53,6 @@ export default function Dashboard() {
 
         const data = await response.json()
 
-        if(!data) {
-          router.push("/import-playlist")
-        }
-        
         setPublicPlaylists(data.publicPlaylists || [])
         setPrivatePlaylists(data.privatePlaylists || [])
       } catch (error) {
@@ -70,7 +66,7 @@ export default function Dashboard() {
   }, [router, session, status])
 
   // Función para activar una playlist
-  const activatePlaylist = (playlist:any) => {
+  const activatePlaylist = (playlist) => {
     // Limpiar cualquier caché relacionada con tierlists
     if (typeof window !== "undefined") {
       Object.keys(sessionStorage).forEach((key) => {
@@ -86,7 +82,8 @@ export default function Dashboard() {
       name: playlist.name,
       image: playlist.image,
       isPrivate: playlist.isPrivate,
-      privatePlaylistName: playlist.privatePlaylistName,
+      privatePlaylistName: playlist.privateName, // Corregido de privatePlaylistName a privateName
+      userPlaylistId: playlist.userPlaylistId, // Añadido para tener referencia directa
     })
 
     // Redirigir a la página de tierlist
