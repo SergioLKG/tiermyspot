@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -13,6 +13,7 @@ import { getSelectedPlaylist } from "@/lib/playlist-selection"
 import { ArtistCard } from "@/components/artist-card"
 import { cachedFetch } from "@/lib/api-cache"
 import { NoPlaylistModal } from "@/components/no-playlist-modal"
+import { CaptureTierlist } from "@/components/capture-tierlist"
 
 // Default tiers
 const TIERS = [
@@ -25,22 +26,23 @@ const TIERS = [
 ]
 
 export default function TierlistPage() {
-  const { data: session, status } = useSession()
-  const [artists, setArtists] = useState([])
-  const [rankings, setRankings] = useState({})
-  const [playlistName, setPlaylistName] = useState("")
-  const [playlistImage, setPlaylistImage] = useState("")
-  const [playlistId, setPlaylistId] = useState("")
-  const [userPlaylistId, setUserPlaylistId] = useState("")
-  const [playingTrack, setPlayingTrack] = useState(null)
-  const [audio, setAudio] = useState(null)
-  const [currentTrackIndices, setCurrentTrackIndices] = useState({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [loadingMessage, setLoadingMessage] = useState("")
-  const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false)
-  const router = useRouter()
-  const searchParams = useSearchParams()
+  const { data: session, status }:any = useSession()
+  const [artists, setArtists]:any = useState([])
+  const [rankings, setRankings]:any = useState({})
+  const [playlistName, setPlaylistName]:any = useState("")
+  const [playlistImage, setPlaylistImage]:any = useState("")
+  const [playlistId, setPlaylistId]:any = useState("")
+  const [userPlaylistId, setUserPlaylistId]:any = useState("")
+  const [playingTrack, setPlayingTrack]:any = useState(null)
+  const [audio, setAudio]:any = useState(null)
+  const [currentTrackIndices, setCurrentTrackIndices]:any = useState({})
+  const [isLoading, setIsLoading]:any = useState(true)
+  const [error, setError]:any = useState(null)
+  const [loadingMessage, setLoadingMessage]:any = useState("")
+  const [showNoPlaylistModal, setShowNoPlaylistModal]:any = useState(false)
+  const router:any = useRouter()
+  const searchParams:any = useSearchParams()
+  const tierlistRef:any = useRef(null)
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -91,8 +93,8 @@ export default function TierlistPage() {
         setArtists(playlistData.artists || [])
 
         // Inicializar índices de pistas actuales
-        const initialIndices = {}
-        playlistData.artists.forEach((artist) => {
+        const initialIndices:any = {}
+        playlistData.artists.forEach((artist:any) => {
           initialIndices[artist.id] = 0
         })
         setCurrentTrackIndices(initialIndices)
@@ -132,7 +134,7 @@ export default function TierlistPage() {
     }
   }, [router, session, status])
 
-  const handleRankArtist = async (artistId, tierId) => {
+  const handleRankArtist = async (artistId:any, tierId:any) => {
     try {
       // Si el artista ya está clasificado con este tier, quitarlo
       const newRankings = { ...rankings }
@@ -177,7 +179,7 @@ export default function TierlistPage() {
     }
   }
 
-  const handlePlayTrack = (artist, trackIndex) => {
+  const handlePlayTrack = (artist:any, trackIndex:any) => {
     const track = artist.tracks[trackIndex]
     if (!track || !track.previewUrl) {
       console.error("No hay URL de previsualización disponible para esta pista")
@@ -339,18 +341,21 @@ export default function TierlistPage() {
                 <p className="text-muted-foreground">{playlistName}</p>
               </div>
             </div>
-            <Link href="/import-playlist">
-              <Button
-                variant="outline"
-                size="sm"
-                className="transition-all hover:bg-primary hover:text-primary-foreground"
-              >
-                Cambiar Playlist
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <CaptureTierlist targetRef={tierlistRef} filename={`tierlist-${playlistName}`} />
+              <Link href="/import-playlist">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-all hover:bg-primary hover:text-primary-foreground"
+                >
+                  Cambiar Playlist
+                </Button>
+              </Link>
+            </div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4" ref={tierlistRef}>
             {TIERS.map((tier) => (
               <div key={tier.id} className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-4">

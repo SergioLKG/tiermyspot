@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -12,6 +12,8 @@ import { Footer } from "@/components/footer"
 import { getSelectedPlaylist } from "@/lib/playlist-selection"
 import { ArtistCard } from "@/components/artist-card"
 import { NoPlaylistModal } from "@/components/no-playlist-modal"
+import { CaptureTierlist } from "@/components/capture-tierlist"
+import { UserVotesPopup } from "@/components/user-votes-popup"
 
 // Default tiers
 const TIERS = [
@@ -68,8 +70,10 @@ export default function GroupTierlistPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false)
+  const [usersData, setUsersData] = useState({})
   const router = useRouter()
   const searchParams = useSearchParams()
+  const tierlistRef = useRef(null)
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -129,6 +133,23 @@ export default function GroupTierlistPage() {
         // Establecer rankings grupales
         setGroupRankings(data.groupTierlist.aggregatedRatings || {})
         setUserCount(data.groupTierlist.userCount || 0)
+
+        // Obtener votos de usuarios
+        try {
+          const votesResponse = await fetch(`/api/group-tierlist/${playlistId}`)
+          if (votesResponse.ok) {
+            const votesData = await votesResponse.json()
+            setUserVotes(votesData.groupRankings?.votes || {})
+
+            // Obtener información de usuarios si está disponible
+            if (votesData.users) {
+              setUsersData(votesData.users)
+            }
+          }
+        } catch (votesError) {
+          console.error("Error al obtener votos de usuarios:", votesError)
+          // No interrumpir el flujo principal si falla esta parte
+        }
       } catch (err) {
         console.error("Error al cargar datos:", err)
         setError(err.message || "Error al cargar la tierlist grupal")
@@ -290,6 +311,7 @@ export default function GroupTierlistPage() {
                 <Users className="h-4 w-4 mr-1" />
                 {userCount} {userCount === 1 ? "persona ha" : "personas han"} calificado esta playlist
               </div>
+              <CaptureTierlist targetRef={tierlistRef} filename={`tierlist-grupal-${playlistName}`} />
               <Link href="/import-playlist">
                 <Button
                   variant="outline"
@@ -302,7 +324,7 @@ export default function GroupTierlistPage() {
             </div>
           </div>
 
-          <div className="grid gap-4">
+          <div className="grid gap-4" ref={tierlistRef}>
             {TIERS.map((tier) => (
               <div key={tier.id} className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -322,40 +344,13 @@ export default function GroupTierlistPage() {
                           onNext={handleNextTrack}
                           onPrev={handlePrevTrack}
                         >
-                          {/* User votes display */}
-                          <div className="flex flex-wrap gap-1 mb-1 justify-center">
-                            {userVotes[artist.id]?.length > 3 ? (
-                              <div className="flex items-center">
-                                <div className="flex -space-x-2">
-                                  {userVotes[artist.id].slice(0, 3).map((vote, index) => (
-                                    <div
-                                      key={index}
-                                      className="relative"
-                                      title={`Usuario ${vote.userId} votó: ${vote.tier}`}
-                                    >
-                                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[8px] text-primary-foreground border-2 border-white">
-                                        {vote.tier}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                                <span className="ml-1 text-xs font-medium bg-primary/10 px-1.5 py-0.5 rounded-full">
-                                  +{userVotes[artist.id].length - 3}
-                                </span>
-                              </div>
-                            ) : (
-                              userVotes[artist.id]?.map((vote, index) => (
-                                <div
-                                  key={index}
-                                  className="relative"
-                                  title={`Usuario ${vote.userId} votó: ${vote.tier}`}
-                                >
-                                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[8px] text-primary-foreground border-2 border-white">
-                                    {vote.tier}
-                                  </div>
-                                </div>
-                              ))
-                            )}
+                          {/* Añadir el popup de votos de usuarios */}
+                          <div className="mt-2 flex justify-center">
+                            <UserVotesPopup
+                              artistName={artist.name}
+                              votes={userVotes[artist.id] || []}
+                              users={usersData}
+                            />
                           </div>
                         </ArtistCard>
                       ))}
@@ -379,7 +374,14 @@ export default function GroupTierlistPage() {
                     onPlay={handlePlayTrack}
                     onNext={handleNextTrack}
                     onPrev={handlePrevTrack}
-                  />
+                  >
+                    {/* Añadir el popup de votos de usuarios si hay votos */}
+                    {userVotes[artist.id] && userVotes[artist.id].length > 0 && (
+                      <div className="mt-2 flex justify-center">
+                        <UserVotesPopup artistName={artist.name} votes={userVotes[artist.id] || []} users={usersData} />
+                      </div>
+                    )}
+                  </ArtistCard>
                 ))}
             </div>
           </div>

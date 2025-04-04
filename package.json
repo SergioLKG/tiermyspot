@@ -67,6 +67,7 @@
     "embla-carousel-react": "8.5.1",
     "expo-sqlite": "latest",
     "gel": "latest",
+    "html2canvas": "^1.4.1",
     "input-otp": "1.4.1",
     "js-cookie": "^3.0.5",
     "knex": "latest",
