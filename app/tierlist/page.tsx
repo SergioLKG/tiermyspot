@@ -397,7 +397,6 @@ export default function TierlistPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              {/* Reemplazamos el componente CaptureTierlist por TierlistExport */}
               <TierlistExport
                 playlistName={playlistName}
                 playlistImage={playlistImage}
