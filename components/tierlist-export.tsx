@@ -85,7 +85,7 @@ export function TierlistExport({
   };
 
   return (
-    <div className="w-full">
+    <div className="bg-[#27272a] w-full">
       <Button
         onClick={handleCapture}
         disabled={isCapturing}
@@ -109,7 +109,7 @@ export function TierlistExport({
       <div className="fixed left-[-9999px]">
         <div
           ref={exportRef}
-          className="bg-white p-8 rounded-lg shadow-lg"
+          className="bg-[#27272a8f] p-8 rounded-lg shadow-lg"
           style={{ width: "1000px" }}
         >
           {/* Encabezado */}
@@ -145,7 +145,7 @@ export function TierlistExport({
                 >
                   <div
                     className={`flex items-center ${
-                      tier !== "unranked" ? TIER_COLORS[tier] : "bg-gray-200"
+                      tier !== "unranked" ? TIER_COLORS[tier] : "bg-[#2a2a318f]"
                     } p-4`}
                   >
                     {tier !== "unranked" ? (
@@ -153,8 +153,8 @@ export function TierlistExport({
                         {tier}
                       </div>
                     ) : (
-                      <div className="w-16 h-16 flex items-center justify-center font-bold text-xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-gray-800">
-                        Sin clasificar
+                      <div className="w-16 h-16 flex items-center justify-center font-bold text-xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                        U
                       </div>
                     )}
 
@@ -166,11 +166,11 @@ export function TierlistExport({
                   </div>
 
                   {tierArtists.length > 0 ? (
-                    <div className="p-4 bg-white flex flex-wrap gap-4">
+                    <div className="p-4 bg-[#27272ad3] flex flex-wrap gap-4">
                       {tierArtists.map((artist) => (
                         <div
                           key={artist.id}
-                          className="w-[120px] bg-gray-100 rounded-lg p-3 shadow-sm"
+                          className="w-[120px] bg-gray-500/30 rounded-lg p-3 shadow-sm"
                         >
                           <div className="relative mb-2 mx-auto">
                             <Image
@@ -188,7 +188,7 @@ export function TierlistExport({
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 bg-white text-center text-gray-500">
+                    <div className="p-8 bg-gray-500/30 text-center text-white">
                       No hay artistas en este tier
                     </div>
                   )}
