@@ -85,7 +85,7 @@ export function TierlistExport({
   };
 
   return (
-    <div className="pt-3">
+    <div className={isGroup ? "pt-2" : ""}>
       <Button
         onClick={handleCapture}
         disabled={isCapturing}

@@ -348,7 +348,7 @@ export default function GroupTierlistPage() {
               <div className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium flex items-center">
                 <Users className="h-4 w-4 mr-1" />
                 {userCount}
-                <span className="sm:hidden">{userCount === 1 ? "persona ha" : "personas han"} calificado esta playlist</span>
+                <span className="hidden sm:block">{userCount === 1 ? "persona ha" : "personas han"} calificado esta playlist</span>
               </div>
               {/* Reemplazamos el componente CaptureTierlist por TierlistExport */}
               <TierlistExport
