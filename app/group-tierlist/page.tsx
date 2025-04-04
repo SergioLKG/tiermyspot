@@ -14,7 +14,6 @@ import { ArtistCard } from "@/components/artist-card";
 import { NoPlaylistModal } from "@/components/no-playlist-modal";
 import { UserVotesPopup } from "@/components/user-votes-popup";
 import { TierlistExport } from "@/components/tierlist-export";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 // Default tiers
 const TIERS = [
@@ -348,7 +347,7 @@ export default function GroupTierlistPage() {
               <div className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium flex items-center">
                 <Users className="h-4 w-4 mr-1" />
                 {userCount}
-                <span className="hidden sm:block">{userCount === 1 ? "persona ha" : "personas han"} calificado esta playlist</span>
+                <span className="hidden sm:block">{userCount === 1 ? " persona ha" : " personas han"} calificado esta playlist</span>
               </div>
               {/* Reemplazamos el componente CaptureTierlist por TierlistExport */}
               <TierlistExport

@@ -66,9 +66,7 @@ export function TierlistExport({
       // Crear enlace de descarga
       const link = document.createElement("a");
       link.href = image;
-      link.download = `tierlist-${playlistName
-        .replace(/[^a-z0-9]/gi, "-")
-        .toLowerCase()}-${new Date().toISOString().split("T")[0]}.png`;
+      link.download = `${playlistName}-${new Date().toISOString().split("T")[0]}.png`;
 
       // Simular clic para descargar
       document.body.appendChild(link);
@@ -85,7 +83,7 @@ export function TierlistExport({
   };
 
   return (
-    <div className={isGroup ? "pt-2" : ""}>
+    <div>
       <Button
         onClick={handleCapture}
         disabled={isCapturing}
@@ -149,11 +147,11 @@ export function TierlistExport({
                     } p-4`}
                   >
                     {tier !== "unranked" ? (
-                      <div className="w-16 h-16 pt-3 text-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 text-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         {tier}
                       </div>
                     ) : (
-                      <div className="w-16 h-16 pt-3 text-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 text-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         U
                       </div>
                     )}
