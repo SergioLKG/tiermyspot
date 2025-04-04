@@ -86,8 +86,8 @@ export function UserVotesPopup({
               <ul className="space-y-2">
                 {votes.map((vote, index) => {
                   const user = users[vote.userId] || {
-                    name: `${user.userName}` ?? null,
-                    image: `${user.userImage}` ?? null,
+                    name: `${vote.userName}` ?? null,
+                    image: `${vote.userImage}` ?? null,
                   };
 
                   return (
