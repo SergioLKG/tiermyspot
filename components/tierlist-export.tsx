@@ -109,7 +109,7 @@ export function TierlistExport({
       <div className="fixed left-[-9999px]">
         <div
           ref={exportRef}
-          className="bg-[#27272a8f] p-8 rounded-lg shadow-lg"
+          className="bg-[#27272a] p-8 rounded-lg shadow-lg"
           style={{ width: "1000px" }}
         >
           {/* Encabezado */}
@@ -149,11 +149,11 @@ export function TierlistExport({
                     } p-4`}
                   >
                     {tier !== "unranked" ? (
-                      <div className="w-16 h-16 flex items-center justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 flex items-center align-middle justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         {tier}
                       </div>
                     ) : (
-                      <div className="w-16 h-16 flex items-center justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 flex items-center align-middle justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         U
                       </div>
                     )}
@@ -181,7 +181,7 @@ export function TierlistExport({
                               className="rounded-md mx-auto shadow-sm object-cover"
                             />
                           </div>
-                          <p className="text-center font-medium text-sm truncate">
+                          <p className="text-center font-medium text-sm truncate align-middle p-1">
                             {artist.name}
                           </p>
                         </div>
