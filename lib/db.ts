@@ -919,10 +919,6 @@ export async function migrateDatabase() {
       DROP TABLE IF EXISTS artists CASCADE;
       DROP TABLE IF EXISTS playlists CASCADE;
       DROP TABLE IF EXISTS users CASCADE;
-    `)
-
-    // Crear tabla de usuarios
-    await db.execute(sql`
       CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
@@ -931,10 +927,6 @@ export async function migrateDatabase() {
         spotify_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `)
-
-    // Crear tabla de playlists
-    await db.execute(sql`
       CREATE TABLE playlists (
         id SERIAL PRIMARY KEY,
         spotify_id TEXT NOT NULL,
@@ -945,20 +937,12 @@ export async function migrateDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `)
-
-    // Crear tabla de artistas
-    await db.execute(sql`
       CREATE TABLE artists (
         id SERIAL PRIMARY KEY,
         spotify_id TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         image TEXT
       )
-    `)
-
-    // Crear tabla de relación usuario-playlist
-    await db.execute(sql`
       CREATE TABLE user_playlists (
         id SERIAL PRIMARY KEY,
         playlist_id INTEGER NOT NULL,
@@ -968,10 +952,6 @@ export async function migrateDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
       )
-    `)
-
-    // Crear tabla de tierlists
-    await db.execute(sql`
       CREATE TABLE tierlists (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
@@ -983,10 +963,6 @@ export async function migrateDatabase() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (user_playlist_id) REFERENCES user_playlists(id) ON DELETE CASCADE
       )
-    `)
-
-    // Crear tabla de tierlists grupales
-    await db.execute(sql`
       CREATE TABLE group_tierlists (
         id SERIAL PRIMARY KEY,
         user_playlist_id INTEGER NOT NULL,
@@ -996,10 +972,6 @@ export async function migrateDatabase() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_playlist_id) REFERENCES user_playlists(id) ON DELETE CASCADE
       )
-    `)
-
-    // Crear índices para mejorar el rendimiento
-    await db.execute(sql`
       CREATE INDEX idx_users_email ON users(email);
       CREATE INDEX idx_playlists_spotify_id ON playlists(spotify_id);
       CREATE INDEX idx_artists_spotify_id ON artists(spotify_id);

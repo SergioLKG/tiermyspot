@@ -60,7 +60,7 @@ export function UserVotesPopup({
       <Button
         variant="ghost"
         size="sm"
-        className="h-6 px-2 text-xs"
+        className="h-6 px-2 text-xs -z-10"
         onClick={() => setIsOpen(!isOpen)}
         title="Ver votos de usuarios"
       >
@@ -71,9 +71,9 @@ export function UserVotesPopup({
       {isOpen && (
         <div
           ref={popupRef}
-          className="absolute z-50 bottom-full left-0 mb-2 w-64 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+          className="absolute z-30 bottom-full left-0 mb-2 w-64 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z"
         >
-          <div className="sticky top-0 bg-white dark:bg-gray-800 p-3 border-b border-gray-200 dark:border-gray-700">
+          <div className="sticky top-0 bg-white dark:bg-gray-800 p-3 border-b border-gray-200 dark:border-gray-700 z-10">
             <h3 className="font-medium text-sm">Votos para {artistName}</h3>
           </div>
 
@@ -93,7 +93,7 @@ export function UserVotesPopup({
                   return (
                     <li
                       key={index}
-                      className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     >
                       <div className="relative h-8 w-8 overflow-hidden rounded-full border">
                         <Image

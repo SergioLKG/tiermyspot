@@ -34,7 +34,7 @@ export function ArtistCard({ artist, children }) {
             alt={artist.name}
             width={80}
             height={80}
-            className="rounded-md mx-auto shadow-sm"
+            className="rounded-md mx-auto shadow-sm z-[5]"
           />
           {spotifyEmbedUrl && (
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-md flex items-center justify-center transition-opacity">
