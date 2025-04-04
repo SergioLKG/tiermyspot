@@ -10,6 +10,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { env } from "process";
 
 // Función para obtener la conexión a la base de datos
 export function getDbConnection() {
@@ -1102,7 +1103,7 @@ export async function getPlaylistRankings(userPlaylistId: number) {
     // Procesamos los ratings para convertirlos al formato esperado
     const rankings: any[] = [];
 
-    tierlistsResult.forEach((tierlist) => {
+    tierlistsResult.forEach(async (tierlist) => {
       if (tierlist && tierlist.ratings) {
         // Asegurarnos de que ratings es un objeto y no un string
         const ratingsObj =
@@ -1110,14 +1111,14 @@ export async function getPlaylistRankings(userPlaylistId: number) {
             ? JSON.parse(tierlist.ratings)
             : tierlist.ratings;
 
-        Object.entries(ratingsObj).forEach(async([artistId, tierId]) => {
+        const userInfo:any = await db
+          .select({ userName: users.name, userImage: users.image })
+          .from(users)
+          .where(sql`${users.id} = ${tierlist.userId}`)
+          .execute();
+
+        Object.entries(ratingsObj).forEach(async ([artistId, tierId]) => {
           if (typeof tierId === "string") {
-            const userInfo = await db
-              .select({ userName: users.name, userImage: users.image })
-              .from(users)
-              .where(sql`${users.id} = ${tierlist.userId}`)
-              .execute();
-              
             rankings.push({
               userId: tierlist.userId,
               userName: userInfo.userName ?? null,
@@ -1129,7 +1130,9 @@ export async function getPlaylistRankings(userPlaylistId: number) {
         });
       }
     });
-
+    if (env.NODE_ENV === "development") {
+      console.log("Rankings:", rankings);
+    }
     return safeSerialize(rankings);
   } catch (error) {
     console.error("Error al obtener rankings de la playlist:", error);
