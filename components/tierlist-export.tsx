@@ -149,11 +149,11 @@ export function TierlistExport({
                     } p-4`}
                   >
                     {tier !== "unranked" ? (
-                      <div className="w-16 h-16 flex items-center align-middle justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 pt-3 text-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         {tier}
                       </div>
                     ) : (
-                      <div className="w-16 h-16 flex items-center align-middle justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 pt-3 text-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         U
                       </div>
                     )}
