@@ -86,8 +86,8 @@ export function UserVotesPopup({
               <ul className="space-y-2">
                 {votes.map((vote, index) => {
                   const user = users[vote.userId] || {
-                    name: `${vote.userName}` || `Usuario ${vote.userId}`,
-                    image: `${vote.userImage}` || "/placeholder.svg",
+                    name: `${user.userName}` ?? null,
+                    image: `${user.userImage}` ?? null,
                   };
 
                   return (
@@ -97,8 +97,8 @@ export function UserVotesPopup({
                     >
                       <div className="relative h-8 w-8 overflow-hidden rounded-full border">
                         <Image
-                          src={user.image || "/placeholder.svg"}
-                          alt={user.name || "Usuario"}
+                          src={user.image ?? "/placeholder.svg"}
+                          alt={user.name ?? "Desconocido"}
                           fill
                           className="object-cover"
                         />
