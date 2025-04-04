@@ -85,12 +85,12 @@ export function TierlistExport({
   };
 
   return (
-    <div className="bg-[#27272a] w-full">
+    <div className="pt-3">
       <Button
         onClick={handleCapture}
         disabled={isCapturing}
         variant="outline"
-        className="flex items-center gap-2 mb-4"
+        className="flex items-center gap-2"
       >
         {isCapturing ? (
           <>
@@ -129,7 +129,7 @@ export function TierlistExport({
               <h1 className="text-3xl font-bold tracking-tight">
                 {isGroup ? "Tierlist Grupal" : "Mi Tierlist"}
               </h1>
-              <p className="text-gray-600 text-xl">{playlistName}</p>
+              <p className="text-gray-400 text-xl ">{playlistName}</p>
             </div>
           </div>
 
@@ -145,7 +145,7 @@ export function TierlistExport({
                 >
                   <div
                     className={`flex items-center ${
-                      tier !== "unranked" ? TIER_COLORS[tier] : "bg-[#2a2a318f]"
+                      tier !== "unranked" ? TIER_COLORS[tier] : "bg-white/20"
                     } p-4`}
                   >
                     {tier !== "unranked" ? (
@@ -153,7 +153,7 @@ export function TierlistExport({
                         {tier}
                       </div>
                     ) : (
-                      <div className="w-16 h-16 flex items-center justify-center font-bold text-xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
+                      <div className="w-16 h-16 flex items-center justify-center font-bold text-4xl rounded-md bg-white/20 backdrop-blur-sm shadow-sm text-white">
                         U
                       </div>
                     )}
@@ -166,7 +166,7 @@ export function TierlistExport({
                   </div>
 
                   {tierArtists.length > 0 ? (
-                    <div className="p-4 bg-[#27272ad3] flex flex-wrap gap-4">
+                    <div className="p-4 bg-transparent border-[#27272ad3] flex flex-wrap gap-4">
                       {tierArtists.map((artist) => (
                         <div
                           key={artist.id}
