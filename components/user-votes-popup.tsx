@@ -60,7 +60,7 @@ export function UserVotesPopup({
       <Button
         variant="ghost"
         size="sm"
-        className="h-6 px-2 text-xs -z-10"
+        className="h-6 px-2 text-xs"
         onClick={() => setIsOpen(!isOpen)}
         title="Ver votos de usuarios"
       >
@@ -71,7 +71,7 @@ export function UserVotesPopup({
       {isOpen && (
         <div
           ref={popupRef}
-          className="absolute z-30 bottom-full left-0 mb-2 w-64 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z"
+          className="absolute z-30 bottom-full left-0 mb-2 w-64 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
         >
           <div className="sticky top-0 bg-white dark:bg-gray-800 p-3 border-b border-gray-200 dark:border-gray-700 z-10">
             <h3 className="font-medium text-sm">Votos para {artistName}</h3>
@@ -85,33 +85,37 @@ export function UserVotesPopup({
             ) : (
               <ul className="space-y-2">
                 {votes.map((vote, index) => {
-                  const user = users[vote.userId] || {
-                    name: `${vote.userName}` || null,
-                    image: `${vote.userImage}` || null,
-                  };
+                  // Intentar obtener datos del usuario desde el objeto users
+                  // Si no existe, usar datos directos del voto
+                  const userData = users[vote.userId] || null;
+                  const userName =
+                    userData?.name || vote.userName || "Usuario desconocido";
+                  const userImage =
+                    userData?.image || vote.userImage || "/placeholder.svg";
 
                   return (
                     <li
-                      key={index}
+                      key={`${vote.userId}-${index}`}
                       className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 select-none"
                     >
                       <div className="relative h-8 w-8 overflow-hidden rounded-full border">
                         <Image
-                          src={user.image ?? "/placeholder.svg"}
-                          alt={user.name ?? "Desconocido"}
+                          src={userImage}
+                          alt={userName}
                           fill
                           className="object-cover"
                         />
                       </div>
                       <span className="flex-1 text-sm truncate">
-                        {user.name}
+                        {userName}
                       </span>
                       <span
                         className={`flex items-center justify-center h-6 w-6 rounded-md font-bold text-sm ${
-                          TIER_COLORS[vote.tier] || "bg-gray-100 text-gray-800"
+                          TIER_COLORS[vote.tierId] ||
+                          "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {vote.tier}
+                        {vote.tierId}
                       </span>
                     </li>
                   );

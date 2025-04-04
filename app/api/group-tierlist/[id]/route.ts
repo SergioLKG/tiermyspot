@@ -49,24 +49,36 @@ export async function GET(
       playlistData.artists
     );
 
+    // Preparar datos de usuarios para el frontend
+    const usersData:any = {};
+    rankings.forEach((ranking) => {
+      if (ranking.userId && !usersData[ranking.userId]) {
+        usersData[ranking.userId] = {
+          name: ranking.userName,
+          image: ranking.userImage,
+        };
+      }
+    });
+
     return NextResponse.json({
       playlist: playlistData,
       groupRankings,
       currentUserId: currentUser?.id,
+      users: usersData, // Añadir los datos de usuarios aquí
     });
-  } catch (error) {
+  } catch (error:any) {
     console.error("Error al obtener tierlist grupal:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 // Función para calcular rankings grupales
-function calculateGroupRankings(rankings, artists) {
-  const artistScores = {};
-  const userVotes = {};
+function calculateGroupRankings(rankings:any, artists:any) {
+  const artistScores:any = {};
+  const userVotes:any = {};
 
   // Inicializar scores para todos los artistas
-  artists.forEach((artist) => {
+  artists.forEach((artist:any) => {
     artistScores[artist.id] = {
       totalScore: 0,
       userCount: 0,
@@ -77,7 +89,7 @@ function calculateGroupRankings(rankings, artists) {
   });
 
   // Procesar todos los rankings
-  rankings.forEach((ranking) => {
+  rankings.forEach((ranking:any) => {
     const { userId, userName, userImage, artistId, tierId } = ranking;
 
     // Convertir tierId a valor numérico (S=5, A=4, B=3, C=2, D=1, F=0)

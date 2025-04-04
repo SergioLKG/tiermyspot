@@ -1103,37 +1103,43 @@ export async function getPlaylistRankings(userPlaylistId: number) {
     // Procesamos los ratings para convertirlos al formato esperado
     const rankings: any[] = [];
 
-    tierlistsResult.forEach(async (tierlist) => {
-      if (tierlist && tierlist.ratings) {
-        // Asegurarnos de que ratings es un objeto y no un string
-        const ratingsObj =
-          typeof tierlist.ratings === "string"
-            ? JSON.parse(tierlist.ratings)
-            : tierlist.ratings;
+    // Usar Promise.all para esperar a que todas las operaciones asíncronas se completen
+    await Promise.all(
+      tierlistsResult.map(async (tierlist) => {
+        if (tierlist && tierlist.ratings) {
+          // Asegurarnos de que ratings es un objeto y no un string
+          const ratingsObj =
+            typeof tierlist.ratings === "string"
+              ? JSON.parse(tierlist.ratings)
+              : tierlist.ratings;
 
-        const userInfo:any = await db
-          .select({ userName: users.name, userImage: users.image })
-          .from(users)
-          .where(sql`${users.id} = ${tierlist.userId}`)
-          .execute();
+          const userInfoResult = await db
+            .select({ userName: users.name, userImage: users.image })
+            .from(users)
+            .where(sql`${users.id} = ${tierlist.userId}`)
+            .execute();
 
-        Object.entries(ratingsObj).forEach(async ([artistId, tierId]) => {
-          if (typeof tierId === "string") {
-            rankings.push({
-              userId: tierlist.userId,
-              userName: userInfo.userName ?? null,
-              userImage: userInfo.userImage ?? null,
-              artistId: Number.parseInt(artistId),
-              tierId: tierId,
-            });
-          }
-        });
-      }
-    });
-    if (env.NODE_ENV === "development") {
-      console.log("Rankings:", rankings);
-    }
-    return safeSerialize(rankings);
+          // Verificar que userInfoResult tiene al menos un elemento
+          const userInfo: any =
+            userInfoResult.length > 0 ? userInfoResult[0] : {};
+
+          // Convertir cada entrada de ratings a un elemento en el array rankings
+          Object.entries(ratingsObj).forEach(([artistId, tierId]) => {
+            if (typeof tierId === "string") {
+              rankings.push({
+                userId: tierlist.userId,
+                userName: userInfo?.userName ?? null,
+                userImage: userInfo?.userImage ?? null,
+                artistId: Number.parseInt(artistId),
+                tierId: tierId,
+              });
+            }
+          });
+        }
+      })
+    );
+
+    return rankings; // Eliminar safeSerialize para ver si es parte del problema
   } catch (error) {
     console.error("Error al obtener rankings de la playlist:", error);
     throw error;
