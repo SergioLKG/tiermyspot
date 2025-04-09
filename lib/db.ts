@@ -86,7 +86,7 @@ export const groupTierlists = pgTable("group_tierlists", {
 });
 
 // Función auxiliar para manejar la serialización de objetos
-function safeSerialize(obj) {
+export function safeSerialize(obj) {
   if (!obj) return obj;
 
   // Si es un array, aplicar a cada elemento

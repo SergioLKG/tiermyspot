@@ -8,10 +8,10 @@ import {
   getUserByEmail,
 } from "@/lib/db";
 import { getDbConnection } from "@/lib/db";
-import { tierlists, users, groupTierlists } from "@/lib/db/schema";
+import { tierlists, users, groupTierlists } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import { getOrCreateGroupTierlist } from "@/lib/db";
-import { safeSerialize } from "@/lib/utils";
+import { safeSerialize } from "@/lib/db";
 
 // Modificar la función updateGroupTierlist para ignorar usuarios demo
 export async function updateGroupTierlist(userPlaylistId: number) {
