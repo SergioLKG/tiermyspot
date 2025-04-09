@@ -10,6 +10,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { env } from "process";
 
 // Función para obtener la conexión a la base de datos
 export function getDbConnection() {
@@ -140,26 +141,17 @@ export async function createUser(userData: {
   }
 }
 
-// Añadir la función para crear un usuario demo con playlists predefinidas
-// Añadir esta función después de getOrCreateUser
-
 export async function getOrCreateUser(userData: {
   email: string;
   name?: string;
   image?: string;
   spotifyId?: string;
-  isDemo?: boolean;
 }) {
   try {
     let user = await getUserByEmail(userData.email);
 
     if (!user) {
       user = await createUser(userData);
-
-      // Si es un usuario demo, crear playlists predefinidas
-      if (userData.isDemo) {
-        await createDemoPlaylists(user.id);
-      }
     } else {
       // Actualizar datos del usuario si han cambiado
       if (
@@ -184,161 +176,6 @@ export async function getOrCreateUser(userData: {
     return user;
   } catch (error) {
     console.error("Error en getOrCreateUser:", error);
-    throw error;
-  }
-}
-
-// Añadir esta nueva función para crear playlists demo
-export async function createDemoPlaylists(userId: number) {
-  try {
-    const db = getDbConnection();
-
-    // Verificar si el usuario ya tiene playlists demo
-    const existingPlaylists = await getUserPlaylists(userId);
-    if (existingPlaylists.length > 0) {
-      return; // El usuario ya tiene playlists
-    }
-
-    // Crear playlists demo
-    const demoPlaylists = [
-      {
-        name: "Rock Clásico Demo",
-        spotifyId: "demo_rock_clasico",
-        description:
-          "Una colección de artistas de rock clásico para el modo demo",
-        image: "/demo-rock.jpg",
-        artists: [
-          {
-            name: "Queen",
-            spotifyId: "demo_queen",
-            image: "/demo-artists/queen.jpg",
-          },
-          {
-            name: "The Beatles",
-            spotifyId: "demo_beatles",
-            image: "/demo-artists/beatles.jpg",
-          },
-          {
-            name: "Led Zeppelin",
-            spotifyId: "demo_ledzeppelin",
-            image: "/demo-artists/ledzeppelin.jpg",
-          },
-          {
-            name: "Pink Floyd",
-            spotifyId: "demo_pinkfloyd",
-            image: "/demo-artists/pinkfloyd.jpg",
-          },
-          {
-            name: "AC/DC",
-            spotifyId: "demo_acdc",
-            image: "/demo-artists/acdc.jpg",
-          },
-          {
-            name: "The Rolling Stones",
-            spotifyId: "demo_rollingstones",
-            image: "/demo-artists/rollingstones.jpg",
-          },
-          {
-            name: "Guns N' Roses",
-            spotifyId: "demo_gunsnroses",
-            image: "/demo-artists/gunsnroses.jpg",
-          },
-          {
-            name: "Metallica",
-            spotifyId: "demo_metallica",
-            image: "/demo-artists/metallica.jpg",
-          },
-        ],
-      },
-      {
-        name: "Pop Actual Demo",
-        spotifyId: "demo_pop_actual",
-        description: "Artistas pop populares para el modo demo",
-        image: "/demo-pop.jpg",
-        artists: [
-          {
-            name: "Taylor Swift",
-            spotifyId: "demo_taylorswift",
-            image: "/demo-artists/taylorswift.jpg",
-          },
-          {
-            name: "Ed Sheeran",
-            spotifyId: "demo_edsheeran",
-            image: "/demo-artists/edsheeran.jpg",
-          },
-          {
-            name: "Billie Eilish",
-            spotifyId: "demo_billieeilish",
-            image: "/demo-artists/billieeilish.jpg",
-          },
-          {
-            name: "Dua Lipa",
-            spotifyId: "demo_dualipa",
-            image: "/demo-artists/dualipa.jpg",
-          },
-          {
-            name: "The Weeknd",
-            spotifyId: "demo_theweeknd",
-            image: "/demo-artists/theweeknd.jpg",
-          },
-          {
-            name: "Ariana Grande",
-            spotifyId: "demo_arianagrande",
-            image: "/demo-artists/arianagrande.jpg",
-          },
-          {
-            name: "Bad Bunny",
-            spotifyId: "demo_badbunny",
-            image: "/demo-artists/badbunny.jpg",
-          },
-          {
-            name: "BTS",
-            spotifyId: "demo_bts",
-            image: "/demo-artists/bts.jpg",
-          },
-        ],
-      },
-    ];
-
-    for (const demoPlaylist of demoPlaylists) {
-      // Crear artistas
-      const artistIds = [];
-      for (const artist of demoPlaylist.artists) {
-        const createdArtist = await getOrCreateArtist({
-          spotifyId: artist.spotifyId,
-          name: artist.name,
-          image: artist.image,
-        });
-        artistIds.push(createdArtist.spotifyId);
-      }
-
-      // Crear playlist
-      const playlist = await getOrCreatePlaylist({
-        spotifyId: demoPlaylist.spotifyId,
-        name: demoPlaylist.name,
-        description: demoPlaylist.description,
-        image: demoPlaylist.image,
-        artistIds: artistIds,
-      });
-
-      // Crear relación usuario-playlist
-      const userPlaylist = await getOrCreateUserPlaylist({
-        userId: userId,
-        playlistId: playlist.id,
-        isPrivate: false,
-      });
-
-      // Crear tierlist vacía
-      await getOrCreateTierlist({
-        userId: userId,
-        userPlaylistId: userPlaylist.id,
-        isHidden: false,
-      });
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error al crear playlists demo:", error);
     throw error;
   }
 }
@@ -1516,29 +1353,5 @@ export async function fixUserPlaylistsArrays() {
   } catch (error) {
     console.error("Error en fixUserPlaylistsArrays:", error);
     return { error: error.message, success: false };
-  }
-}
-
-// Añadir esta función al final del archivo lib/db.ts
-
-// Función para verificar si un usuario es demo
-export async function isUserDemo(userId: number): Promise<boolean> {
-  try {
-    const db = getDbConnection();
-    const result = await db
-      .select()
-      .from(users)
-      .where(sql`${users.id} = ${userId}`)
-      .execute();
-
-    if (!result || result.length === 0) {
-      return false;
-    }
-
-    const user = result[0];
-    return user.email === "demo@tiermyspot.com";
-  } catch (error) {
-    console.error("Error al verificar si el usuario es demo:", error);
-    return false;
   }
 }

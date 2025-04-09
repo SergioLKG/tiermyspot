@@ -1,50 +1,25 @@
-import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
-import { SessionProvider } from "@/components/session-provider";
-import { Toaster } from "@/components/ui/toaster";
-import { Metadata, Viewport } from "next";
-import "./globals.css";
+import { Inter } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
+import { SessionProvider } from "@/components/session-provider"
+import { Toaster } from "@/components/ui/toaster"
+import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const viewport: Viewport = {
-  initialScale: 1,
-  minimumScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  width: "device-width",
-  height: "device-height",
-  viewportFit: "cover",
-  themeColor: "#0c0a09",
-};
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tiermyspot.vercel.app"),
-  title: "Tiermyspot - Crea tierlists de tus artistas favoritos de Spotify",
-  description:
-    "Crea y comparte tier lists personalizadas con tus artistas más escuchados de Spotify. Público, privado o con amigos. by SergioLKG",
+  title: "TierMySpot - Crea tierlists de tus artistas favoritos",
+  description: "Crea y comparte tierlists de tus artistas favoritos de Spotify. Con todo el mundo, con tus amigos o en privado. by SergioLKG",
   icons: {
     icon: "/logo.svg",
   },
   openGraph: {
-    title: "Tiermyspot - Crea tierlists de tus artistas favoritos de Spotify",
-    description:
-      "Crea y comparte tier lists personalizadas con tus artistas más escuchados de Spotify. Público, privado o con amigos. by SergioLKG",
+    title: "TierMySpot - Crea tierlists de tus artistas favoritos",
+    description: "Crea y comparte tierlists de tus artistas favoritos de Spotify. Con todo el mundo, con tus amigos o en privado. by SergioLKG",
     url: "https://tiermyspot.vercel.app",
-    siteName: "Tiermyspot",
+    siteName: "TierMySpot",
     images: [
       {
-        url: "https://tiermyspot.vercel.app/og-image.jpg",
-        width: 1200,
-        height: 630,
-      },
-      {
-        url: "/screenshot1.png", // Must be an absolute URL
-        width: 1200,
-        height: 630,
-      },
-      {
-        url: "/screenshot2.png", // Must be an absolute URL
+        url: "/screenshot.png",
         width: 1200,
         height: 630,
       },
@@ -57,21 +32,6 @@ export const metadata: Metadata = {
     },
   ],
   creator: "SergioLKG",
-  alternates: {
-    canonical: "/",
-    languages: {
-      es: "/es",
-      en: "/en",
-    },
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Tiermyspot - Crea tierlists de tus artistas favoritos de Spotify",
-    description:
-      "Crea y comparte tier lists personalizadas con tus artistas más escuchados de Spotify. Público, privado o con amigos. by SergioLKG",
-    creator: "@sergiolkg",
-    images: ["/og-image.jpg"],
-  },
   keywords: [
     "tierlist",
     "spotify",
@@ -116,13 +76,23 @@ export const metadata: Metadata = {
     "tierlist group",
     "tierlist group tierlist",
   ],
-};
+  twitter: {
+    card: "summary_large_image",
+    title: "TierMySpot - Crea tierlists de tus artistas favoritos",   
+    description: "Crea y comparte tierlists de tus artistas favoritos de Spotify. Con todo el mundo, con tus amigos o en privado. by SergioLKG",
+    creator: "@sergiolkg",
+    images: ["/screenshot.png"],
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    minimumScale: 1,
+    userScalable: false,
+  },
+}
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
@@ -134,5 +104,10 @@ export default function RootLayout({
         </SessionProvider>
       </body>
     </html>
-  );
+  )
 }
+
+
+
+import './globals.css'
+import { Metadata } from "next"
