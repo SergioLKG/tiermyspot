@@ -155,11 +155,6 @@ export async function getOrCreateUser(userData: {
 
     if (!user) {
       user = await createUser(userData);
-
-      // Si es un usuario demo, crear playlists predefinidas
-      if (userData.isDemo) {
-        await createDemoPlaylists(user.id);
-      }
     } else {
       // Actualizar datos del usuario si han cambiado
       if (
@@ -184,161 +179,6 @@ export async function getOrCreateUser(userData: {
     return user;
   } catch (error) {
     console.error("Error en getOrCreateUser:", error);
-    throw error;
-  }
-}
-
-// Añadir esta nueva función para crear playlists demo
-export async function createDemoPlaylists(userId: number) {
-  try {
-    const db = getDbConnection();
-
-    // Verificar si el usuario ya tiene playlists demo
-    const existingPlaylists = await getUserPlaylists(userId);
-    if (existingPlaylists.length > 0) {
-      return; // El usuario ya tiene playlists
-    }
-
-    // Crear playlists demo
-    const demoPlaylists = [
-      {
-        name: "Rock Clásico Demo",
-        spotifyId: "demo_rock_clasico",
-        description:
-          "Una colección de artistas de rock clásico para el modo demo",
-        image: "/demo-rock.jpg",
-        artists: [
-          {
-            name: "Queen",
-            spotifyId: "demo_queen",
-            image: "/demo-artists/queen.jpg",
-          },
-          {
-            name: "The Beatles",
-            spotifyId: "demo_beatles",
-            image: "/demo-artists/beatles.jpg",
-          },
-          {
-            name: "Led Zeppelin",
-            spotifyId: "demo_ledzeppelin",
-            image: "/demo-artists/ledzeppelin.jpg",
-          },
-          {
-            name: "Pink Floyd",
-            spotifyId: "demo_pinkfloyd",
-            image: "/demo-artists/pinkfloyd.jpg",
-          },
-          {
-            name: "AC/DC",
-            spotifyId: "demo_acdc",
-            image: "/demo-artists/acdc.jpg",
-          },
-          {
-            name: "The Rolling Stones",
-            spotifyId: "demo_rollingstones",
-            image: "/demo-artists/rollingstones.jpg",
-          },
-          {
-            name: "Guns N' Roses",
-            spotifyId: "demo_gunsnroses",
-            image: "/demo-artists/gunsnroses.jpg",
-          },
-          {
-            name: "Metallica",
-            spotifyId: "demo_metallica",
-            image: "/demo-artists/metallica.jpg",
-          },
-        ],
-      },
-      {
-        name: "Pop Actual Demo",
-        spotifyId: "demo_pop_actual",
-        description: "Artistas pop populares para el modo demo",
-        image: "/demo-pop.jpg",
-        artists: [
-          {
-            name: "Taylor Swift",
-            spotifyId: "demo_taylorswift",
-            image: "/demo-artists/taylorswift.jpg",
-          },
-          {
-            name: "Ed Sheeran",
-            spotifyId: "demo_edsheeran",
-            image: "/demo-artists/edsheeran.jpg",
-          },
-          {
-            name: "Billie Eilish",
-            spotifyId: "demo_billieeilish",
-            image: "/demo-artists/billieeilish.jpg",
-          },
-          {
-            name: "Dua Lipa",
-            spotifyId: "demo_dualipa",
-            image: "/demo-artists/dualipa.jpg",
-          },
-          {
-            name: "The Weeknd",
-            spotifyId: "demo_theweeknd",
-            image: "/demo-artists/theweeknd.jpg",
-          },
-          {
-            name: "Ariana Grande",
-            spotifyId: "demo_arianagrande",
-            image: "/demo-artists/arianagrande.jpg",
-          },
-          {
-            name: "Bad Bunny",
-            spotifyId: "demo_badbunny",
-            image: "/demo-artists/badbunny.jpg",
-          },
-          {
-            name: "BTS",
-            spotifyId: "demo_bts",
-            image: "/demo-artists/bts.jpg",
-          },
-        ],
-      },
-    ];
-
-    for (const demoPlaylist of demoPlaylists) {
-      // Crear artistas
-      const artistIds = [];
-      for (const artist of demoPlaylist.artists) {
-        const createdArtist = await getOrCreateArtist({
-          spotifyId: artist.spotifyId,
-          name: artist.name,
-          image: artist.image,
-        });
-        artistIds.push(createdArtist.spotifyId);
-      }
-
-      // Crear playlist
-      const playlist = await getOrCreatePlaylist({
-        spotifyId: demoPlaylist.spotifyId,
-        name: demoPlaylist.name,
-        description: demoPlaylist.description,
-        image: demoPlaylist.image,
-        artistIds: artistIds,
-      });
-
-      // Crear relación usuario-playlist
-      const userPlaylist = await getOrCreateUserPlaylist({
-        userId: userId,
-        playlistId: playlist.id,
-        isPrivate: false,
-      });
-
-      // Crear tierlist vacía
-      await getOrCreateTierlist({
-        userId: userId,
-        userPlaylistId: userPlaylist.id,
-        isHidden: false,
-      });
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error al crear playlists demo:", error);
     throw error;
   }
 }
@@ -1250,6 +1090,7 @@ export async function migrateDatabase() {
   }
 }
 
+// Modificar la función getPlaylistRankings para incluir la propiedad isDemo
 export async function getPlaylistRankings(userPlaylistId: number) {
   try {
     const db = getDbConnection();
@@ -1277,7 +1118,11 @@ export async function getPlaylistRankings(userPlaylistId: number) {
               : tierlist.ratings;
 
           const userInfoResult = await db
-            .select({ userName: users.name, userImage: users.image })
+            .select({
+              userName: users.name,
+              userImage: users.image,
+              userEmail: users.email,
+            })
             .from(users)
             .where(sql`${users.id} = ${tierlist.userId}`)
             .execute();
@@ -1285,6 +1130,9 @@ export async function getPlaylistRankings(userPlaylistId: number) {
           // Verificar que userInfoResult tiene al menos un elemento
           const userInfo: any =
             userInfoResult.length > 0 ? userInfoResult[0] : {};
+
+          // Determinar si es un usuario demo (por el email)
+          const isDemo = userInfo?.userEmail === "demo@tiermyspot.com";
 
           // Convertir cada entrada de ratings a un elemento en el array rankings
           Object.entries(ratingsObj).forEach(([artistId, tierId]) => {
@@ -1295,6 +1143,7 @@ export async function getPlaylistRankings(userPlaylistId: number) {
                 userImage: userInfo?.userImage ?? null,
                 artistId: Number.parseInt(artistId),
                 tierId: tierId,
+                isDemo: isDemo,
               });
             }
           });
@@ -1302,7 +1151,7 @@ export async function getPlaylistRankings(userPlaylistId: number) {
       })
     );
 
-    return rankings; // Eliminar safeSerialize para ver si es parte del problema
+    return rankings;
   } catch (error) {
     console.error("Error al obtener rankings de la playlist:", error);
     throw error;

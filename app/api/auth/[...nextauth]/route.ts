@@ -43,7 +43,7 @@ export const authOptions = {
           const demoUser = await getOrCreateUser({
             email: credentials.email,
             name: credentials.name,
-            image: credentials.image || "/demo-avatar.png",
+            image: credentials.image || "/placeholder.svg",
             isDemo: true,
           });
 

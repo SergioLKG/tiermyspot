@@ -50,7 +50,7 @@ export async function GET(
     );
 
     // Preparar datos de usuarios para el frontend
-    const usersData:any = {};
+    const usersData: any = {};
     rankings.forEach((ranking) => {
       if (ranking.userId && !usersData[ranking.userId]) {
         usersData[ranking.userId] = {
@@ -66,19 +66,19 @@ export async function GET(
       currentUserId: currentUser?.id,
       users: usersData, // Añadir los datos de usuarios aquí
     });
-  } catch (error:any) {
+  } catch (error: any) {
     console.error("Error al obtener tierlist grupal:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// Función para calcular rankings grupales
-function calculateGroupRankings(rankings:any, artists:any) {
-  const artistScores:any = {};
-  const userVotes:any = {};
+// Modificar la función calculateGroupRankings para ignorar usuarios demo
+function calculateGroupRankings(rankings: any, artists: any) {
+  const artistScores: any = {};
+  const userVotes: any = {};
 
   // Inicializar scores para todos los artistas
-  artists.forEach((artist:any) => {
+  artists.forEach((artist: any) => {
     artistScores[artist.id] = {
       totalScore: 0,
       userCount: 0,
@@ -89,8 +89,13 @@ function calculateGroupRankings(rankings:any, artists:any) {
   });
 
   // Procesar todos los rankings
-  rankings.forEach((ranking:any) => {
-    const { userId, userName, userImage, artistId, tierId } = ranking;
+  rankings.forEach((ranking: any) => {
+    const { userId, userName, userImage, artistId, tierId, isDemo } = ranking;
+
+    // Ignorar usuarios demo en el cálculo
+    if (isDemo) {
+      return;
+    }
 
     // Convertir tierId a valor numérico (S=5, A=4, B=3, C=2, D=1, F=0)
     let score = 0;

@@ -52,7 +52,7 @@ export function Header({ activePage = "" }) {
           </Link>
 
           {isDemo ? (
-            <TooltipProvider>
+            <TooltipProvider delayDuration={100} skipDelayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
@@ -68,10 +68,18 @@ export function Header({ activePage = "" }) {
                     </Button>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent
+                  side="bottom"
+                  sideOffset={5}
+                  className="p-3 max-w-xs"
+                  forceMount
+                >
                   <div className="flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-2 text-amber-500" />
-                    <p>No disponible en modo demo</p>
+                    <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
+                    <p>
+                      Esta función no está disponible en modo demo. Usa las
+                      playlists predefinidas para probar la aplicación.
+                    </p>
                   </div>
                 </TooltipContent>
               </Tooltip>
