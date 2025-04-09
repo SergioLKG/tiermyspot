@@ -356,11 +356,18 @@ export default function TierlistPage() {
                 <Button
                   variant="outline"
                   onClick={() => window.location.reload()}
+                  title="Intentar de nuevo"
+                  aria-label="Intentar de nuevo"
                 >
                   Intentar de nuevo
                 </Button>
                 <Link href="/dashboard">
-                  <Button>Volver al dashboard</Button>
+                  <Button
+                    title="Volver al dashboard"
+                    aria-label="Volver al dashboard"
+                  >
+                    Volver al dashboard
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -408,6 +415,8 @@ export default function TierlistPage() {
                   variant="outline"
                   size="sm"
                   className="transition-all hover:bg-primary hover:text-primary-foreground"
+                  title="Cambiar Playlist"
+                  aria-label="Cambiar Playlist"
                 >
                   Cambiar Playlist
                 </Button>
@@ -461,6 +470,11 @@ export default function TierlistPage() {
                                     ? "Haz clic para quitar de este tier"
                                     : `Mover a tier ${t.label}`
                                 }
+                                aria-label={
+                                  t.id === tier.id
+                                    ? "Haz clic para quitar de este tier"
+                                    : `Mover a tier ${t.label}`
+                                }
                               >
                                 {t.label}
                               </Button>
@@ -494,6 +508,8 @@ export default function TierlistPage() {
                         <Button
                           key={tier.id}
                           variant="outline"
+                          title={`Mover a tier ${tier.label}`}
+                          aria-label={`Mover a tier ${tier.label}`}
                           size="sm"
                           className="h-8 px-2 transition-all hover:bg-muted"
                           onClick={() => handleRankArtist(artist.id, tier.id)}

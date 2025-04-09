@@ -145,6 +145,8 @@ export default function LoginPage() {
                 onClick={handleDemoLogin}
                 variant="outline"
                 className="w-full py-6 text-base"
+                title="Probar en modo demo"
+                aria-label="Probar en modo demo"
                 disabled={isDemoLoading}
               >
                 {isDemoLoading ? (

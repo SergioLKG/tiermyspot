@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Music } from "lucide-react"
+import { useState } from "react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Music } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,18 +12,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 export function ArtistCard({ artist, children }) {
-  const [isEmbedOpen, setIsEmbedOpen] = useState(false)
+  const [isEmbedOpen, setIsEmbedOpen] = useState(false);
 
   // Asegurarnos de que la imagen del artista sea válida
   const artistImage =
     artist.image ||
-    `/placeholder.svg?height=100&width=100&text=${encodeURIComponent(artist.name?.substring(0, 2) || "?")}`
+    `/placeholder.svg?height=100&width=100&text=${encodeURIComponent(
+      artist.name?.substring(0, 2) || "?"
+    )}`;
 
   // Generar la URL del embed de Spotify
-  const spotifyEmbedUrl = artist.spotifyId ? `https://open.spotify.com/embed/artist/${artist.spotifyId}` : null
+  const spotifyEmbedUrl = artist.spotifyId
+    ? `https://open.spotify.com/embed/artist/${artist.spotifyId}`
+    : null;
 
   return (
     <Card className="w-[160px] transition-all hover:shadow-md">
@@ -44,6 +48,8 @@ export function ArtistCard({ artist, children }) {
                     variant="ghost"
                     size="icon"
                     className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 hover:text-white"
+                    title={`Escuchar a ${artist.name} - Abrir embed de Spotify`}
+                    aria-label={`Escuchar a ${artist.name} - Abrir embed de Spotify`}
                   >
                     <Music className="h-5 w-5" />
                   </Button>
@@ -51,7 +57,9 @@ export function ArtistCard({ artist, children }) {
                 <DialogContent className="sm:max-w-xl md:max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>{artist.name}</DialogTitle>
-                    <DialogDescription>Escucha las canciones más populares de este artista</DialogDescription>
+                    <DialogDescription>
+                      Escucha las canciones más populares de este artista
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="flex items-center space-x-2">
                     <div className="grid flex-1 gap-2">
@@ -77,5 +85,5 @@ export function ArtistCard({ artist, children }) {
         {children}
       </CardContent>
     </Card>
-  )
+  );
 }

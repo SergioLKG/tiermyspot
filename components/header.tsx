@@ -60,6 +60,8 @@ export function Header({ activePage = "" }) {
                       variant="outline"
                       size="sm"
                       className="flex items-center gap-1 opacity-60 cursor-not-allowed"
+                      title="Importar Playlist"
+                      aria-label="Importar Playlist"
                     >
                       <Import className="h-4 w-4" />
                       <span className="hidden sm:inline-block">
@@ -97,6 +99,8 @@ export function Header({ activePage = "" }) {
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-1"
+                title="Importar Playlist"
+                aria-label="Importar Playlist"
               >
                 <Import className="h-4 w-4" />
                 <span className="hidden sm:inline-block">
@@ -134,6 +138,8 @@ export function Header({ activePage = "" }) {
               size="sm"
               onClick={() => signOut()}
               className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
             >
               <LogOut className="h-4 w-4" />
               <span className="hidden sm:inline-block">Cerrar sesión</span>

@@ -55,7 +55,7 @@ export default function AuthErrorPage() {
           </CardContent>
           <CardFooter className="flex flex-col space-y-2">
             <Link href="/login" className="w-full">
-              <Button className="w-full">Volver a intentar</Button>
+              <Button className="w-full" title="Volver a intentar" aria-label="Volver a intentar">Volver a intentar</Button>
             </Link>
             <Link
               href="/"

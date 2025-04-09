@@ -139,6 +139,8 @@ export default function ImportPlaylistPage() {
                 <Button
                   onClick={() => router.push("/dashboard")}
                   className="mt-4"
+                  title="Volver al dashboard"
+                  aria-label="Volver al dashboard"
                 >
                   Volver al dashboard
                 </Button>
@@ -234,7 +236,13 @@ export default function ImportPlaylistPage() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full"
+                title="Importar Playlist"
+                aria-label="Importar Playlist"
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

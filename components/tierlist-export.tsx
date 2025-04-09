@@ -89,6 +89,8 @@ export function TierlistExport({
         disabled={isCapturing}
         variant="outline"
         className="flex items-center gap-2"
+        title="Guardar como imagen"
+        aria-label="Guardar como imagen"
       >
         {isCapturing ? (
           <>

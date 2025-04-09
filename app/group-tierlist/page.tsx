@@ -294,12 +294,19 @@ export default function GroupTierlistPage() {
               <div className="flex gap-4">
                 <Button
                   variant="outline"
+                  title="Reintentar"
+                  aria-label="Reintentar"
                   onClick={() => window.location.reload()}
                 >
                   Intentar de nuevo
                 </Button>
                 <Link href="/dashboard">
-                  <Button>Volver al dashboard</Button>
+                  <Button
+                    title="Volver al dashboard"
+                    aria-label="Volver al dashboard"
+                  >
+                    Volver al dashboard
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -364,6 +371,8 @@ export default function GroupTierlistPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  title="Cambiar Playlist"
+                  aria-label="Cambiar Playlist"
                   className="transition-all hover:bg-primary hover:text-primary-foreground"
                 >
                   Cambiar Playlist

@@ -40,6 +40,8 @@ export function NoPlaylistModal({ open, onOpenChange }: NoPlaylistModalProps) {
               onOpenChange(false)
               router.push("/dashboard")
             }}
+            title="Ir al Dashboard"
+            aria-label="Ir al Dashboard"
           >
             Ir al Dashboard
           </Button>
@@ -49,6 +51,8 @@ export function NoPlaylistModal({ open, onOpenChange }: NoPlaylistModalProps) {
               onOpenChange(false)
               router.push("/import-playlist")
             }}
+            title="Importar Playlist"
+            aria-label="Importar Playlist"
           >
             <Import className="h-4 w-4 mr-2" />
             Importar Playlist

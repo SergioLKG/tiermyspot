@@ -63,6 +63,7 @@ export function UserVotesPopup({
         className="h-6 px-2 text-xs"
         onClick={() => setIsOpen(!isOpen)}
         title="Ver votos de usuarios"
+        aria-label="Ver votos de usuarios"
       >
         <Users className="h-3 w-3 mr-1" />
         <span>{votes.length}</span>
