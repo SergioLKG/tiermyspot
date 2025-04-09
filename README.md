@@ -67,4 +67,4 @@ Si quieres contribuir, ¡eres bienvenido! Haz un **fork** del repositorio y env�
 ---
 **TierMySpot** - Clasifica tu música, a tu manera. 🎵
 
-![screenshot-page](public/screenshot.png)
+![screenshot-page](public/og-image.jpg)

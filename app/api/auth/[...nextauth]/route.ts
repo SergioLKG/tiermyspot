@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import SpotifyProvider from "next-auth/providers/spotify";
-import { getOrCreateUser } from "@/lib/db";
-import { refreshSpotifyToken } from "@/lib/spotify-api";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 const scopes = [
   "user-read-email",
@@ -23,64 +22,46 @@ export const authOptions = {
         },
       },
     }),
+    // Proveedor de credenciales ultra simplificado para el modo demo
+    CredentialsProvider({
+      id: "demo-login",
+      name: "Demo Mode",
+      credentials: {},
+      async authorize() {
+        // Devolver un usuario demo simple
+        return {
+          id: "demo-user",
+          name: "Usuario Demo",
+          email: "demo@tiermyspot.com",
+          image: "/demo-avatar.png",
+          isDemo: true,
+        };
+      },
+    }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
-      if (account) {
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-        token.expiresAt = Date.now() + account.expires_at * 1000;
-
-        if (profile) {
-          token.spotifyId = profile.id;
-        }
+    async jwt({ token, user }) {
+      // Si es un usuario demo, simplemente marcar el token
+      if (user?.isDemo) {
+        token.isDemo = true;
+        return token;
       }
 
-      if (token.expiresAt && Date.now() >= token.expiresAt * 1000) {
-        try {
-          const newTokens = await refreshSpotifyToken(token.refreshToken);
-          token.accessToken = newTokens.accessToken;
-          token.refreshToken = newTokens.refreshToken;
-          token.expiresAt = newTokens.expiresAt;
-        } catch (error) {
-          console.error("Error refreshing access token", error);
-          return { ...token, error: "RefreshAccessTokenError" };
-        }
-      }
-
+      // Lógica normal para usuarios de Spotify
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.error = token.error;
-      session.spotifyId = token.spotifyId;
-      session.expiresAt = token.expiresAt;
-
-      return session;
-    },
-    async signIn({ user, account, profile }) {
-      try {
-        if (user.email) {
-          await getOrCreateUser({
-            email: user.email,
-            name: user.name,
-            image: user.image,
-            spotifyId: profile.id,
-          });
-        }
-        return true;
-      } catch (error) {
-        console.error("Error saving user to database:", error);
-        return true; // Permitir el inicio de sesión incluso si hay un error en la base de datos
+      // Si el token tiene isDemo, marcar la sesión
+      if (token.isDemo) {
+        session.isDemo = true;
       }
+      return session;
     },
   },
   pages: {
     signIn: "/login",
     error: "/auth/error",
   },
-  debug: process.env.NODE_ENV === "development",
   secret: process.env.NEXTAUTH_SECRET,
 };
 

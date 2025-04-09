@@ -1,6 +1,6 @@
 {
   "name": "tiermyspot",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -52,6 +52,7 @@
     "@tidbcloud/serverless": "latest",
     "@types/better-sqlite3": "latest",
     "@types/js-cookie": "^3.0.6",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/pg": "latest",
     "@types/sql.js": "latest",
     "@vercel/postgres": "latest",
@@ -70,6 +71,7 @@
     "html2canvas": "^1.4.1",
     "input-otp": "1.4.1",
     "js-cookie": "^3.0.5",
+    "jsonwebtoken": "^9.0.2",
     "knex": "latest",
     "kysely": "latest",
     "lucide-react": "^0.454.0",

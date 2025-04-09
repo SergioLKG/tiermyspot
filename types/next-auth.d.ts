@@ -5,6 +5,7 @@ declare module "next-auth" {
     error?: string
     spotifyId?: string
     expiresAt?: number
+    isDemo?: boolean
     user: {
       name?: string | null
       email?: string | null
@@ -15,8 +16,9 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    accessToken?: string;
-    refreshToken?: string;
-    expiresAt?: number;
+    accessToken?: string
+    refreshToken?: string
+    expiresAt?: number
+    isDemo?: boolean
   }
 }
