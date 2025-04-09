@@ -53,7 +53,7 @@ export default function LoginPage() {
         redirect: false,
         email: "demo@tiermyspot.com",
         name: "Usuario Demo",
-        image: null,
+        image: "/placeholder.svg",
         isDemo: true,
       });
 
