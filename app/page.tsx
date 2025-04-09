@@ -1,7 +1,7 @@
-import Link from "next/link"
-import { SpotifyButton } from "@/components/ui/spotify-button"
-import { Footer } from "@/components/footer"
-import { Logo } from "@/components/logo"
+import Link from "next/link";
+import { SpotifyButton } from "@/components/ui/spotify-button";
+import { Footer } from "@/components/footer";
+import { Logo } from "@/components/logo";
 
 export default function Home() {
   return (
@@ -9,7 +9,10 @@ export default function Home() {
       <header className="px-4 lg:px-6 h-14 flex items-center border-b">
         <Logo />
         <nav className="ml-auto flex gap-4 sm:gap-6">
-          <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">
+          <Link
+            href="/login"
+            className="text-sm font-medium hover:text-primary transition-colors"
+          >
             Iniciar sesión
           </Link>
         </nav>
@@ -25,12 +28,15 @@ export default function Home() {
                   </span>
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                  Crea tierlists de tus artistas favoritos de Spotify y compártelas con tus amigos.
+                  Crea tierlists de tus artistas favoritos de Spotify y
+                  compártelas con tus amigos.
                 </p>
               </div>
               <div className="space-x-4">
                 <Link href="/login">
-                  <SpotifyButton>Comenzar con Spotify</SpotifyButton>
+                  <SpotifyButton className="w-full py-6 text-base">
+                    Comenzar con Spotify
+                  </SpotifyButton>
                 </Link>
               </div>
             </div>
@@ -59,7 +65,8 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold">Importa tus playlists</h3>
                 <p className="text-muted-foreground">
-                  Conecta con Spotify y trae tus playlists favoritas para clasificar a los artistas.
+                  Conecta con Spotify y trae tus playlists favoritas para
+                  clasificar a los artistas.
                 </p>
               </div>
               <div className="space-y-4">
@@ -82,7 +89,8 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold">Crea tu tierlist</h3>
                 <p className="text-muted-foreground">
-                  Organiza a tus artistas en tiers desde S (los mejores) hasta F (los peores).
+                  Organiza a tus artistas en tiers desde S (los mejores) hasta F
+                  (los peores).
                 </p>
               </div>
               <div className="space-y-4">
@@ -105,7 +113,8 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold">Comparte con amigos</h3>
                 <p className="text-muted-foreground">
-                  Compara tus rankings con los de tus amigos y descubre vuestras coincidencias.
+                  Compara tus rankings con los de tus amigos y descubre vuestras
+                  coincidencias.
                 </p>
               </div>
             </div>
@@ -114,5 +123,5 @@ export default function Home() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }

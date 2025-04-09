@@ -35,8 +35,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { prefetchDNS } from "react-dom";
 
 export default function Dashboard() {
+  prefetchDNS("https://image-cdn-ak.spotifycdn.com");
+  prefetchDNS("https://i.scdn.co");
+  prefetchDNS("https://mosaic.scdn.co");
+
   const { data: session, status } = useSession();
   const isDemo = session?.isDemo || false;
   const [publicPlaylists, setPublicPlaylists] = useState([]);
@@ -206,7 +211,12 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <Link href="/tierlist">
-                  <Button>Ir a Mi Tierlist</Button>
+                  <Button
+                    title="Ver mi tierlist de la playlist seleccionada"
+                    aria-label="Ver mi tierlist de la playlist seleccionada"
+                  >
+                    Ir a Mi Tierlist
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
@@ -219,7 +229,12 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <Link href="/group-tierlist">
-                  <Button>Ver Tierlist Grupal</Button>
+                  <Button
+                    title="Ver tierlist grupal de la playlist seleccionada"
+                    aria-label="Ver tierlist grupal de la playlist seleccionada"
+                  >
+                    Ver Tierlist Grupal
+                  </Button>
                 </Link>
               </CardContent>
             </Card>
@@ -239,6 +254,9 @@ export default function Dashboard() {
                           variant="outline"
                           size="sm"
                           className="flex items-center gap-1 opacity-60 cursor-not-allowed"
+                          title="Importar Playlist"
+                          aria-label="Importar Playlist"
+                          disabled
                         >
                           <Import className="h-4 w-4" />
                           <span className="hidden sm:inline-block">
@@ -265,7 +283,11 @@ export default function Dashboard() {
                   </TooltipProvider>
                 ) : (
                   <Link href="/import-playlist">
-                    <Button className="w-full">
+                    <Button
+                      className="w-full"
+                      title="Importar Playlist"
+                      aria-label="Importar Playlist"
+                    >
                       <Import className="mr-2 h-4 w-4" />
                       Importar Playlist
                     </Button>
@@ -284,9 +306,49 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mb-4">
                     No tienes playlists públicas
                   </p>
-                  <Link href="/import-playlist">
-                    <Button variant="outline">Importar Playlist</Button>
-                  </Link>
+                  {isDemo ? (
+                    <TooltipProvider delayDuration={100} skipDelayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 opacity-60 cursor-not-allowed"
+                            title="Importar Playlist"
+                            aria-label="Importar Playlist"
+                            disabled
+                          >
+                            Importar Playlist
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="bottom"
+                          sideOffset={5}
+                          className="p-3 max-w-xs"
+                          forceMount
+                        >
+                          <div className="flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
+                            <p>
+                              Esta función no está disponible en modo demo. Usa
+                              las playlists predefinidas para probar la
+                              aplicación.
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Link href="/import-playlist">
+                      <Button
+                        variant="outline"
+                        title="Importar Playlist"
+                        aria-label="Importar Playlist"
+                      >
+                        Importar Playlist
+                      </Button>
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -311,6 +373,8 @@ export default function Dashboard() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 bg-black/30 hover:bg-black/50 text-white"
+                        title="Ocultar Playlist"
+                        aria-label="Ocultar Playlist"
                         onClick={() =>
                           setConfirmDialog({
                             open: true,
@@ -338,6 +402,8 @@ export default function Dashboard() {
                               ? "bg-green-600 hover:bg-green-700"
                               : ""
                           }
+                          title="Seleccionar Playlist"
+                          aria-label="Seleccionar Playlist"
                         >
                           {isPlaylistSelected(playlist) ? (
                             <span className="flex items-center">
@@ -366,7 +432,13 @@ export default function Dashboard() {
                     No tienes playlists privadas
                   </p>
                   <Link href="/import-playlist">
-                    <Button variant="outline">Crear Playlist Privada</Button>
+                    <Button
+                      variant="outline"
+                      title="Crear Playlist Privada"
+                      aria-label="Crear Playlist Privada"
+                    >
+                      Crear Playlist Privada
+                    </Button>
                   </Link>
                 </CardContent>
               </Card>
@@ -382,6 +454,7 @@ export default function Dashboard() {
                         src={playlist.image || "/placeholder.svg"}
                         alt={playlist.name}
                         fill
+                        loading="eager"
                         className="object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
@@ -400,6 +473,8 @@ export default function Dashboard() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-2 right-2 bg-black/30 hover:bg-black/50 text-white"
+                        title="Ocultar Playlist"
+                        aria-label="Ocultar Playlist"
                         onClick={() =>
                           setConfirmDialog({
                             open: true,
@@ -426,6 +501,16 @@ export default function Dashboard() {
                             isPlaylistSelected(playlist)
                               ? "bg-green-600 hover:bg-green-700"
                               : ""
+                          }
+                          title={
+                            isPlaylistSelected(playlist)
+                              ? "Playlist Seleccionada"
+                              : "Seleccionar Playlist"
+                          }
+                          aria-label={
+                            isPlaylistSelected(playlist)
+                              ? "Playlist Seleccionada"
+                              : "Seleccionar Playlist"
                           }
                         >
                           {isPlaylistSelected(playlist) ? (
@@ -467,6 +552,8 @@ export default function Dashboard() {
           <DialogFooter>
             <Button
               variant="outline"
+              title="Cancelar ocultar playlist"
+              aria-label="Cancelar ocultar playlist"
               onClick={() =>
                 setConfirmDialog({
                   open: false,
@@ -479,7 +566,15 @@ export default function Dashboard() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => hidePlaylist(confirmDialog.playlistId)}
+              title="Confirmar Ocultar playlist"
+              aria-label="Confirmar Ocultar playlist"
+              onClick={() => {
+                isDemo
+                  ? console.log(
+                      "Nothing happens... it's because this is a demo?"
+                    )
+                  : hidePlaylist(confirmDialog.playlistId);
+              }}
             >
               Ocultar playlist
             </Button>

@@ -72,7 +72,7 @@ export async function GET(
   }
 }
 
-// Modificar la función calculateGroupRankings para ignorar usuarios demo
+// Función para calcular rankings grupales
 function calculateGroupRankings(rankings: any, artists: any) {
   const artistScores: any = {};
   const userVotes: any = {};
@@ -90,12 +90,7 @@ function calculateGroupRankings(rankings: any, artists: any) {
 
   // Procesar todos los rankings
   rankings.forEach((ranking: any) => {
-    const { userId, userName, userImage, artistId, tierId, isDemo } = ranking;
-
-    // Ignorar usuarios demo en el cálculo
-    if (isDemo) {
-      return;
-    }
+    const { userId, userName, userImage, artistId, tierId } = ranking;
 
     // Convertir tierId a valor numérico (S=5, A=4, B=3, C=2, D=1, F=0)
     let score = 0;

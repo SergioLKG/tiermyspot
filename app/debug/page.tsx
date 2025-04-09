@@ -103,11 +103,11 @@ export default function DebugPage() {
                   <p className="text-red-600 font-medium mb-2">
                     ✗ Error de conexión
                   </p>
-                  <p className="text-sm bg-red-50 p-3 rounded border border-red-200">
+                  <p className="text-sm bg-red-50 p-3 rounded border border-red-200 text-black">
                     {dbStatus?.error ||
                       "No se pudo conectar a la base de datos"}
                   </p>
-                  <div className="mt-4 bg-amber-50 p-3 rounded border border-amber-200">
+                  <div className="mt-4 bg-amber-50 p-3 rounded border border-amber-200 text-black">
                     <h4 className="font-medium mb-2">Posibles soluciones:</h4>
                     <ul className="list-disc pl-5 space-y-1 text-sm">
                       <li>
@@ -179,7 +179,7 @@ export default function DebugPage() {
                     </ul>
                   </div>
 
-                  <div className="mt-4 bg-blue-50 p-3 rounded border border-blue-200">
+                  <div className="mt-4 bg-blue-50 p-3 rounded border border-blue-200 text-black">
                     <h4 className="font-medium mb-2">Instrucciones:</h4>
                     <ul className="list-disc pl-5 space-y-1 text-sm">
                       {spotifyStatus.pasos.map((paso, index) => (
