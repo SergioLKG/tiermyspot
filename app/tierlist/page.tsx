@@ -449,7 +449,7 @@ export default function TierlistPage() {
                           onNext={handleNextTrack}
                           onPrev={handlePrevTrack}
                         >
-                          <div className="grid grid-cols-3 gap-0.5 mt-2">
+                          <div className="grid grid-cols-3 gap-1.5 mt-2">
                             {TIERS.map((t) => (
                               <Button
                                 key={t.id}
