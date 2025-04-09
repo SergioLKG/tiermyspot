@@ -1,15 +1,16 @@
 declare module "next-auth" {
   interface Session {
-    accessToken?: string
-    refreshToken?: string
-    error?: string
-    spotifyId?: string
-    expiresAt?: number
+    accessToken?: string;
+    refreshToken?: string;
+    error?: string;
+    spotifyId?: string;
+    expiresAt?: number;
+    isDemo?: boolean;
     user: {
-      name?: string | null
-      email?: string | null
-      image?: string | null
-    }
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
   }
 }
 
@@ -18,5 +19,6 @@ declare module "next-auth/jwt" {
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: number;
+    isDemo?: boolean;
   }
 }

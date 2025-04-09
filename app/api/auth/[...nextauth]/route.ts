@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import SpotifyProvider from "next-auth/providers/spotify";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { getOrCreateUser } from "@/lib/db";
 import { refreshSpotifyToken } from "@/lib/spotify-api";
 
@@ -23,9 +24,51 @@ export const authOptions = {
         },
       },
     }),
+    // Añadir proveedor de credenciales para el modo demo
+    CredentialsProvider({
+      name: "Demo Mode",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        name: { label: "Name", type: "text" },
+        image: { label: "Image", type: "text" },
+        isDemo: { label: "Is Demo", type: "boolean" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.name) {
+          return null;
+        }
+
+        // Crear un usuario demo
+        try {
+          const demoUser = await getOrCreateUser({
+            email: credentials.email,
+            name: credentials.name,
+            image: credentials.image || "/demo-avatar.png",
+            isDemo: true,
+          });
+
+          return {
+            id: String(demoUser.id),
+            email: demoUser.email,
+            name: demoUser.name,
+            image: demoUser.image,
+            isDemo: true,
+          };
+        } catch (error) {
+          console.error("Error creating demo user:", error);
+          return null;
+        }
+      },
+    }),
   ],
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
+      // Manejar el caso del usuario demo
+      if (user?.isDemo) {
+        token.isDemo = true;
+        return token;
+      }
+
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
@@ -51,16 +94,26 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.refreshToken = token.refreshToken;
-      session.error = token.error;
-      session.spotifyId = token.spotifyId;
-      session.expiresAt = token.expiresAt;
+      // Añadir la propiedad isDemo a la sesión
+      if (token.isDemo) {
+        session.isDemo = true;
+      } else {
+        session.accessToken = token.accessToken;
+        session.refreshToken = token.refreshToken;
+        session.error = token.error;
+        session.spotifyId = token.spotifyId;
+        session.expiresAt = token.expiresAt;
+      }
 
       return session;
     },
     async signIn({ user, account, profile }) {
       try {
+        // Si es un usuario demo, ya se ha creado en el authorize
+        if (user.isDemo) {
+          return true;
+        }
+
         if (user.email) {
           await getOrCreateUser({
             email: user.email,

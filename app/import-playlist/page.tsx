@@ -22,13 +22,19 @@ export default function ImportPlaylistPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const isDemo = session?.isDemo || false;
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     }
-  }, [status, router]);
+
+    // Redirigir al dashboard si es un usuario demo
+    if (status === "authenticated" && isDemo) {
+      router.push("/dashboard");
+    }
+  }, [status, router, isDemo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -110,6 +116,37 @@ export default function ImportPlaylistPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Cargando...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Si es un usuario demo, mostrar mensaje de restricción
+  if (isDemo) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header activePage="import" />
+        <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+          <div className="max-w-md w-full">
+            <div className="bg-card p-6 rounded-lg border shadow-sm">
+              <div className="flex flex-col items-center text-center gap-4">
+                <AlertTriangle className="h-12 w-12 text-amber-500" />
+                <h1 className="text-2xl font-bold">Función no disponible</h1>
+                <p className="text-muted-foreground">
+                  La importación de playlists no está disponible en el modo
+                  demo. Estás utilizando playlists predefinidas para probar la
+                  aplicación.
+                </p>
+                <Button
+                  onClick={() => router.push("/dashboard")}
+                  className="mt-4"
+                >
+                  Volver al dashboard
+                </Button>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
