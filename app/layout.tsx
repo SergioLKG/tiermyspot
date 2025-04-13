@@ -44,16 +44,6 @@ export const metadata: Metadata = {
         width: 1200,
         height: 630,
       },
-      {
-        url: "https://tiermyspot.vercel.app/screenshot1.png", // Must be an absolute URL
-        width: 1200,
-        height: 630,
-      },
-      {
-        url: "https://tiermyspot.vercel.app/screenshot2.png", // Must be an absolute URL
-        width: 1200,
-        height: 630,
-      },
     ],
   },
   authors: [
