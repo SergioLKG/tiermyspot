@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { getUserByEmail, getUserPlaylists, hideUserTierlists } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const privatePlaylists = playlists.filter((playlist: any) => playlist.isPrivate)
 
     return NextResponse.json({ publicPlaylists, privatePlaylists })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener playlists del dashboard:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: "Acción no válida" }, { status: 400 })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al actualizar playlist del dashboard:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

@@ -1,0 +1,6 @@
+allowBuilds:
+  better-sqlite3: set this to true or false
+  bufferutil: set this to true or false
+  msgpackr-extract: set this to true or false
+  sharp: true
+  sqlite3: set this to true or false

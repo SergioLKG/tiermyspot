@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export function SpotifyIcon({ className }) {
+export function SpotifyIcon({ className }: { className: any }) {
   return (
     <svg
       className={className}
@@ -31,7 +31,7 @@ export function SpotifyIcon({ className }) {
   )
 }
 
-export function SpotifyButton({ children, className, ...props }) {
+export function SpotifyButton({ children, className, ...props }: { children: any; className: any; [key: string]: any }) {
   return (
     <Button
       className={cn("bg-[#1DB954] hover:bg-[#1DB954]/90 text-white font-medium transition-all", className)}

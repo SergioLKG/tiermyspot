@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { getPlaylistUserCount } from "@/lib/db"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const id = params.id
+    const { id: id } = await params
 
     if (!id) {
       return NextResponse.json({ error: "ID de playlist no proporcionado" }, { status: 400 })
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const userCount = await getPlaylistUserCount(Number.parseInt(id))
 
     return NextResponse.json({ userCount })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener estadísticas de playlist:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

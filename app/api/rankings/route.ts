@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { getUserByEmail, updateTierlistRating, getTierlist, getUserPlaylist } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     // Devolver los ratings de la tierlist
     return NextResponse.json(tierlist.ratings || {})
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener rankings:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     await updateTierlistRating(user.id, userPlaylist.id, Number.parseInt(artistId), tierId)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al guardar ranking:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

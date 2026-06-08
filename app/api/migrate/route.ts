@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     } else {
       return NextResponse.json({ success: false, error: result.error }, { status: 500 })
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al ejecutar migración:", error)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }

@@ -10,10 +10,10 @@ import { AlertCircle, CheckCircle } from "lucide-react"
 
 export default function DebugPlaylistsPage() {
   const { data: session, status } = useSession()
-  const [debugInfo, setDebugInfo] = useState(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [fixResult, setFixResult] = useState(null)
+  const [error, setError] = useState<any>(null)
+  const [fixResult, setFixResult] = useState<any>(null)
   const [isFixing, setIsFixing] = useState(false)
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function DebugPlaylistsPage() {
 
         const data = await response.json()
         setDebugInfo(data)
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error:", err)
         setError(err.message)
       } finally {
@@ -61,7 +61,7 @@ export default function DebugPlaylistsPage() {
         const debugData = await debugResponse.json()
         setDebugInfo(debugData)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al corregir playlists:", err)
       setFixResult({ success: false, error: err.message })
     } finally {
@@ -73,7 +73,7 @@ export default function DebugPlaylistsPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="debug" />
-        <main className="flex-1 p-4 md:p-6 bg-muted/30">
+        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">Depuración de Playlists</h1>
             <div className="flex justify-center items-center p-12">
@@ -91,7 +91,7 @@ export default function DebugPlaylistsPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="debug" />
-        <main className="flex-1 p-4 md:p-6 bg-muted/30">
+        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">Depuración de Playlists</h1>
             <div className="bg-destructive/10 p-6 rounded-lg border border-destructive/20">
@@ -111,7 +111,7 @@ export default function DebugPlaylistsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header activePage="debug" />
-      <main className="flex-1 p-4 md:p-6 bg-muted/30">
+      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold mb-6">Depuración de Playlists</h1>
 
@@ -155,7 +155,7 @@ export default function DebugPlaylistsPage() {
           {debugInfo?.details && debugInfo.details.length > 0 ? (
             <div className="grid gap-4">
               <h2 className="text-xl font-bold">Detalles de las playlists</h2>
-              {debugInfo.details.map((playlist, index) => (
+              {debugInfo.details.map((playlist: any, index: any) => (
                 <Card key={index}>
                   <CardContent className="p-4">
                     <div className="grid grid-cols-2 gap-2">

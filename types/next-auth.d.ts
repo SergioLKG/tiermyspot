@@ -1,3 +1,5 @@
+import "next-auth";
+
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
@@ -6,11 +8,6 @@ declare module "next-auth" {
     spotifyId?: string;
     expiresAt?: number;
     isDemo?: boolean;
-    user: {
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-    };
   }
 }
 

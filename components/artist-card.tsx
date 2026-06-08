@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function ArtistCard({ artist, children }) {
+export function ArtistCard({ artist, children, ...props }: { artist: any; children: any; [key: string]: any }) {
   const [isEmbedOpen, setIsEmbedOpen] = useState(false);
 
   // Asegurarnos de que la imagen del artista sea válida
@@ -64,6 +64,7 @@ export function ArtistCard({ artist, children }) {
                   <div className="flex items-center space-x-2">
                     <div className="grid flex-1 gap-2">
                       <iframe
+                        title={`Vista previa de ${artist.name} en Spotify`}
                         style={{ borderRadius: "12px" }}
                         src={spotifyEmbedUrl}
                         width="100%"

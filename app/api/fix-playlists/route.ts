@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { fixUserPlaylistsArrays } from "@/lib/db"
 
 export async function POST(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const result = await fixUserPlaylistsArrays()
 
     return NextResponse.json(result)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en fix-playlists:", error)
     return NextResponse.json({ error: error.message, success: false }, { status: 500 })
   }

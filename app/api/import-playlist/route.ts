@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { processPlaylistData } from "@/lib/spotify-api";
 import {
   getOrCreatePlaylist,
@@ -39,7 +39,7 @@ async function refreshAccessToken(refreshToken: any) {
       accessToken: refreshedTokens.access_token,
       refreshToken: refreshedTokens.refresh_token ?? refreshToken,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error refreshing access token", error);
     throw new Error("Failed to refresh access token");
   }
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     // Extraer los IDs de Spotify de los artistas
     const artistSpotifyIds = playlistData.artists.map(
-      (artist) => artist.spotifyId
+      (artist: any) => artist.spotifyId
     );
 
     // Crear o actualizar playlist con los IDs de artistas

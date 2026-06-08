@@ -61,20 +61,20 @@ const TIERS = [
 
 export default function GroupTierlistPage() {
   const { data: session, status } = useSession();
-  const [groupRankings, setGroupRankings] = useState({});
-  const [userVotes, setUserVotes] = useState({});
-  const [playingTrack, setPlayingTrack] = useState(null);
-  const [audio, setAudio] = useState(null);
-  const [artists, setArtists] = useState([]);
-  const [currentTrackIndices, setCurrentTrackIndices] = useState({});
+  const [groupRankings, setGroupRankings] = useState<Record<string, any>>({});
+  const [userVotes, setUserVotes] = useState<Record<string, any>>({});
+  const [playingTrack, setPlayingTrack] = useState<any>(null);
+  const [audio, setAudio] = useState<any>(null);
+  const [artists, setArtists] = useState<any[]>([]);
+  const [currentTrackIndices, setCurrentTrackIndices] = useState<Record<string, number>>({});
   const [playlistName, setPlaylistName] = useState("");
   const [playlistImage, setPlaylistImage] = useState("");
   const [playlistId, setPlaylistId] = useState("");
   const [userCount, setUserCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<any>(null);
   const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false);
-  const [usersData, setUsersData] = useState({});
+  const [usersData, setUsersData] = useState<Record<string, any>>({});
   const router = useRouter();
   const searchParams = useSearchParams();
   const tierlistRef = useRef(null);
@@ -134,7 +134,7 @@ export default function GroupTierlistPage() {
         setArtists(data.playlist.artists);
 
         // Inicializar índices de pistas actuales
-        const initialIndices = {};
+        const initialIndices: Record<string, number> = {};
         data.playlist.artists.forEach((artist: any) => {
           initialIndices[artist.id] = 0;
         });
@@ -162,7 +162,7 @@ export default function GroupTierlistPage() {
           console.error("Error al obtener votos de usuarios:", votesError);
           // No interrumpir el flujo principal si falla esta parte
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error al cargar datos:", err);
         setError(err.message || "Error al cargar la tierlist grupal");
       } finally {
@@ -201,7 +201,7 @@ export default function GroupTierlistPage() {
 
       // Configurar eventos
       newAudio.addEventListener("canplay", () => {
-        newAudio.play().catch((error) => {
+        newAudio.play().catch((error: any) => {
           console.error("Error al reproducir audio:", error);
         });
       });
@@ -283,7 +283,7 @@ export default function GroupTierlistPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="group" />
-        <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
           <div className="max-w-md w-full">
             <div className="bg-destructive/10 p-6 rounded-lg border border-destructive/20 flex flex-col items-center">
               <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
@@ -318,7 +318,7 @@ export default function GroupTierlistPage() {
   }
 
   // Preparar los rankings para el componente de exportación
-  const tierRankings = {};
+  const tierRankings: Record<string, string> = {};
   Object.entries(groupRankings).forEach(([artistId, data]: [string, any]) => {
     if (data.tier) {
       tierRankings[artistId] = data.tier;
@@ -329,7 +329,7 @@ export default function GroupTierlistPage() {
     <div className="flex flex-col min-h-screen">
       <Header activePage="group" />
 
-      <main className="flex-1 p-4 md:p-6 bg-muted/30">
+      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">

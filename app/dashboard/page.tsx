@@ -44,16 +44,16 @@ export default function Dashboard() {
 
   const { data: session, status } = useSession();
   const isDemo = session?.isDemo || false;
-  const [publicPlaylists, setPublicPlaylists] = useState([]);
-  const [privatePlaylists, setPrivatePlaylists] = useState([]);
+  const [publicPlaylists, setPublicPlaylists] = useState<any[]>([]);
+  const [privatePlaylists, setPrivatePlaylists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
-    playlistId: null,
+    playlistId: null as number | null,
     playlistName: "",
   });
   const router = useRouter();
-  const [selectedPlaylistInfo, setSelectedPlaylistInfo] = useState(null);
+  const [selectedPlaylistInfo, setSelectedPlaylistInfo] = useState<any>(null);
 
   useEffect(() => {
     // Check if user is logged in
@@ -80,9 +80,24 @@ export default function Dashboard() {
 
         const data = await response.json();
 
-        setPublicPlaylists(data.publicPlaylists || []);
-        setPrivatePlaylists(data.privatePlaylists || []);
-      } catch (error) {
+        const publicList = data.publicPlaylists || [];
+        const privateList = data.privatePlaylists || [];
+
+        // Si es usuario demo y no tiene playlists, seed automáticamente
+        if (isDemo && publicList.length === 0 && privateList.length === 0) {
+          await fetch("/api/dashboard/seed-demo", { method: "POST" });
+          const retryResponse = await fetch("/api/dashboard");
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            setPublicPlaylists(retryData.publicPlaylists || []);
+            setPrivatePlaylists(retryData.privatePlaylists || []);
+            return;
+          }
+        }
+
+        setPublicPlaylists(publicList);
+        setPrivatePlaylists(privateList);
+      } catch (error: any) {
         console.error("Error al cargar playlists:", error);
       } finally {
         setIsLoading(false);
@@ -93,7 +108,7 @@ export default function Dashboard() {
   }, [router, session, status]);
 
   // Función para verificar si una playlist está seleccionada
-  const isPlaylistSelected = (playlist) => {
+  const isPlaylistSelected = (playlist: any) => {
     if (!selectedPlaylistInfo) return false;
 
     if (playlist.isPrivate) {
@@ -110,7 +125,7 @@ export default function Dashboard() {
   };
 
   // Función para activar una playlist
-  const activatePlaylist = (playlist) => {
+  const activatePlaylist = (playlist: any) => {
     // Limpiar cualquier caché relacionada con tierlists
     if (typeof window !== "undefined") {
       Object.keys(sessionStorage).forEach((key) => {
@@ -129,7 +144,7 @@ export default function Dashboard() {
       name: playlist.name,
       image: playlist.image,
       isPrivate: playlist.isPrivate,
-      privateName: playlist.privateName, // Corregido de privateName a privateName
+      privateName: playlist.privateName,
       userPlaylistId: playlist.userPlaylistId, // Añadido para tener referencia directa
     });
 
@@ -148,7 +163,7 @@ export default function Dashboard() {
   };
 
   // Función para ocultar una playlist
-  const hidePlaylist = async (playlistId) => {
+  const hidePlaylist = async (playlistId: any) => {
     try {
       const response = await fetch("/api/dashboard", {
         method: "POST",
@@ -174,7 +189,7 @@ export default function Dashboard() {
       );
 
       setConfirmDialog({ open: false, playlistId: null, playlistName: "" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al ocultar playlist:", error);
     }
   };
@@ -194,7 +209,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header activePage="dashboard" />
-      <main className="flex-1 p-4 md:p-6 bg-muted/30">
+      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
         <div className="grid gap-4 md:gap-8 max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">

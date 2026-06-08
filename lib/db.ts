@@ -9,7 +9,8 @@ import {
   integer,
   jsonb,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
+import { DEMO_PLAYLIST_ID, DEMO_EMAIL } from "@/lib/constants";
 
 // Función para obtener la conexión a la base de datos
 export function getDbConnection() {
@@ -86,7 +87,7 @@ export const groupTierlists = pgTable("group_tierlists", {
 });
 
 // Función auxiliar para manejar la serialización de objetos
-export function safeSerialize(obj) {
+export function safeSerialize<T>(obj: T): any {
   if (!obj) return obj;
 
   // Si es un array, aplicar a cada elemento
@@ -96,7 +97,7 @@ export function safeSerialize(obj) {
 
   // Si es un objeto, crear una copia limpia
   if (typeof obj === "object") {
-    const result = {};
+    const result: Record<string, any> = {};
     for (const key in obj) {
       // Excluir propiedades que puedan causar referencias circulares
       if (key !== "table" && key !== "schema" && key !== "_") {
@@ -118,7 +119,7 @@ export async function getUserByEmail(email: string) {
       .from(users)
       .where(sql`${users.email} = ${email}`);
     return safeSerialize(result[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener usuario por email:", error);
     throw error;
   }
@@ -134,7 +135,7 @@ export async function createUser(userData: {
     const db = getDbConnection();
     const result = await db.insert(users).values(userData).returning();
     return safeSerialize(result[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al crear usuario:", error);
     throw error;
   }
@@ -177,7 +178,7 @@ export async function getOrCreateUser(userData: {
     }
 
     return user;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en getOrCreateUser:", error);
     throw error;
   }
@@ -267,7 +268,7 @@ export async function getUserPlaylist(
 
   try {
     // Construir la consulta base
-    let query = db
+    let query: any = db
       .select()
       .from(userPlaylists)
       .where(sql`${userPlaylists.playlistId} = ${playlistId}`);
@@ -292,7 +293,7 @@ export async function getUserPlaylist(
 
     // Verificar si el usuario está en el array usersIds
     const userPlaylist = result[0];
-    let usersIds = userPlaylist.usersIds || [];
+    let usersIds: any[] = (userPlaylist as any).usersIds || [];
 
     // Asegurarse de que usersIds es un array
     if (!Array.isArray(usersIds)) {
@@ -312,7 +313,7 @@ export async function getUserPlaylist(
     }
 
     return safeSerialize(userPlaylist);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en getUserPlaylist:", error);
     return null;
   }
@@ -355,7 +356,7 @@ export async function addUserToUserPlaylist(
   }
 
   const userPlaylist = userPlaylistResult[0];
-  let usersIds = userPlaylist.usersIds || [];
+  let usersIds: any[] = (userPlaylist as any).usersIds || [];
 
   // Asegurarnos de que usersIds es un array
   if (!Array.isArray(usersIds)) {
@@ -388,7 +389,7 @@ export async function getOrCreateUserPlaylist(userPlaylistData: {
   const db = getDbConnection();
 
   // Buscar una userPlaylist existente que coincida con los criterios
-  let query = db
+  let query: any = db
     .select()
     .from(userPlaylists)
     .where(sql`${userPlaylists.playlistId} = ${userPlaylistData.playlistId}`);
@@ -406,7 +407,7 @@ export async function getOrCreateUserPlaylist(userPlaylistData: {
   if (userPlaylistResult && userPlaylistResult.length > 0) {
     // Si existe, añadir el usuario al array de usersIds si no está ya
     const userPlaylist = userPlaylistResult[0];
-    let usersIds = userPlaylist.usersIds || [];
+    let usersIds: any[] = (userPlaylist as any).usersIds || [];
 
     // Asegurarnos de que usersIds es un array
     if (!Array.isArray(usersIds)) {
@@ -477,7 +478,7 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
     }
 
     // Para cada userPlaylist, verificamos si el usuario tiene una tierlist
-    const result = [];
+    const result: any[] = [];
 
     for (const userPlaylist of userPlaylistsResult) {
       // Obtener la tierlist del usuario para esta userPlaylist
@@ -535,7 +536,7 @@ export async function getUserPlaylists(userId: number, includeHidden = false) {
     }
 
     return safeSerialize(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en getUserPlaylists:", error);
     return [];
   }
@@ -546,7 +547,7 @@ export async function getPlaylistArtists(playlistId: number) {
   const db = getDbConnection();
 
   // Primero obtenemos los IDs de artistas de la playlist
-  const playlistResult = await db
+  const playlistResult: any = await db
     .select({ artistIds: playlists.artistIds })
     .from(playlists)
     .where(sql`${playlists.id} = ${playlistId}`)
@@ -562,7 +563,7 @@ export async function getPlaylistArtists(playlistId: number) {
 
   // Luego obtenemos los detalles de los artistas uno por uno
   const artistIds = playlistResult[0].artistIds;
-  const artists = [];
+  const artistResults: any[] = [];
 
   // Asegurarse de que artistIds es un array
   const artistIdsArray = Array.isArray(artistIds) ? artistIds : [artistIds];
@@ -575,11 +576,11 @@ export async function getPlaylistArtists(playlistId: number) {
       .execute();
 
     if (artistResult.length > 0) {
-      artists.push(artistResult[0]);
+      artistResults.push(artistResult[0]);
     }
   }
 
-  return safeSerialize(artists);
+  return safeSerialize(artistResults);
 }
 
 export async function getArtistBySpotifyId(spotifyId: string) {
@@ -590,7 +591,7 @@ export async function getArtistBySpotifyId(spotifyId: string) {
       .from(artists)
       .where(sql`${artists.spotifyId} = ${spotifyId}`);
     return safeSerialize(result[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener artista por spotifyId:", error);
     throw error;
   }
@@ -685,52 +686,74 @@ export async function getOrCreateTierlist(tierlistData: {
 export async function updateTierlistRating(
   userId: number,
   userPlaylistId: number,
-  artistId: number,
+  artistId: number | string,
   tierId: string | null
 ) {
   const db = getDbConnection();
 
-  // Obtener o crear la tierlist
-  const tierlist = await getOrCreateTierlist({
-    userId,
-    userPlaylistId,
+  const result = await db.transaction(async (tx) => {
+    // Obtener o crear la tierlist dentro de la transacción
+    let tierlist = await tx
+      .select()
+      .from(tierlists)
+      .where(
+        sql`${tierlists.userId} = ${userId} AND ${tierlists.userPlaylistId} = ${userPlaylistId}`
+      )
+      .execute();
+
+    if (tierlist.length === 0) {
+      const [newTierlist] = await tx
+        .insert(tierlists)
+        .values({
+          userId,
+          userPlaylistId,
+          ratings: {},
+          isHidden: false,
+        })
+        .returning();
+      tierlist = [newTierlist];
+    }
+
+    const currentTierlist = tierlist[0];
+
+    // Actualizar los ratings
+    let ratings: Record<string, any> = currentTierlist.ratings || {};
+
+    // Asegurarnos de que ratings es un objeto y no un string
+    if (typeof ratings === "string") {
+      try {
+        ratings = JSON.parse(ratings);
+      } catch (e) {
+        console.error("Error parsing ratings:", e);
+        ratings = {};
+      }
+    }
+
+    const artistKey = String(artistId);
+
+    if (tierId === null) {
+      delete ratings[artistKey];
+    } else {
+      ratings[artistKey] = tierId;
+    }
+
+    // Guardar los cambios dentro de la transacción
+    const [updated] = await tx
+      .update(tierlists)
+      .set({
+        ratings: ratings,
+        updatedAt: new Date(),
+      })
+      .where(sql`${tierlists.id} = ${currentTierlist.id}`)
+      .returning();
+
+    return updated;
   });
 
-  // Actualizar los ratings
-  let ratings = tierlist.ratings || {};
-
-  // Asegurarnos de que ratings es un objeto y no un string
-  if (typeof ratings === "string") {
-    try {
-      ratings = JSON.parse(ratings);
-    } catch (e) {
-      console.error("Error parsing ratings:", e);
-      ratings = {};
-    }
-  }
-
-  if (tierId === null) {
-    // Eliminar el rating
-    delete ratings[artistId];
-  } else {
-    // Actualizar o añadir el rating
-    ratings[artistId] = tierId;
-  }
-
-  // Guardar los cambios
-  const result = await db
-    .update(tierlists)
-    .set({
-      ratings: ratings,
-      updatedAt: new Date(),
-    })
-    .where(sql`${tierlists.id} = ${tierlist.id}`)
-    .returning();
-
-  // Actualizar la tierlist grupal
+  // Actualizar la tierlist grupal fuera de la transacción
   await updateGroupTierlist(userPlaylistId);
 
-  return safeSerialize(result[0]);
+  return safeSerialize(result);
 }
 
 export async function getGroupTierlist(userPlaylistId: number) {
@@ -770,7 +793,6 @@ export async function getOrCreateGroupTierlist(userPlaylistId: number) {
 export async function updateGroupTierlist(userPlaylistId: number) {
   const db = getDbConnection();
 
-  // Obtener todas las tierlists para esta userPlaylist
   const tierlistsResult = await db
     .select()
     .from(tierlists)
@@ -783,17 +805,32 @@ export async function updateGroupTierlist(userPlaylistId: number) {
     return null;
   }
 
-  // Calcular los ratings agregados
-  const aggregatedRatings = {};
+  const aggregatedRatings: Record<string, any> = {};
   const uniqueUserIds = new Set();
 
+  const userIds = tierlistsResult.map((tierlist) => tierlist.userId);
+  const usersInfo = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.id, userIds))
+    .execute();
+
+  const demoUsers = new Set();
+  usersInfo.forEach((user) => {
+    if (user.email === "demo@tiermyspot.com") {
+      demoUsers.add(user.id);
+    }
+  });
+
   tierlistsResult.forEach((tierlist) => {
+    if (demoUsers.has(tierlist.userId)) {
+      return;
+    }
+
     uniqueUserIds.add(tierlist.userId);
 
-    // Procesar los ratings de esta tierlist
     let ratings = tierlist.ratings || {};
 
-    // Asegurarnos de que ratings es un objeto y no un string
     if (typeof ratings === "string") {
       try {
         ratings = JSON.parse(ratings);
@@ -819,13 +856,9 @@ export async function updateGroupTierlist(userPlaylistId: number) {
         };
       }
 
-      // Incrementar el contador para este tier
       aggregatedRatings[artistId][tierId]++;
-
-      // Actualizar estadísticas
       aggregatedRatings[artistId].userCount++;
 
-      // Convertir tierId a valor numérico
       let score = 0;
       switch (tierId) {
         case "S":
@@ -852,13 +885,11 @@ export async function updateGroupTierlist(userPlaylistId: number) {
     });
   });
 
-  // Calcular promedios y asignar tiers
   Object.values(aggregatedRatings).forEach((artistRating: any) => {
     if (artistRating.userCount > 0) {
       artistRating.averageScore =
         artistRating.totalScore / artistRating.userCount;
 
-      // Asignar tier basado en promedio
       if (artistRating.averageScore >= 4.5) artistRating.tier = "S";
       else if (artistRating.averageScore >= 3.5) artistRating.tier = "A";
       else if (artistRating.averageScore >= 2.5) artistRating.tier = "B";
@@ -868,10 +899,8 @@ export async function updateGroupTierlist(userPlaylistId: number) {
     }
   });
 
-  // Obtener o crear la tierlist grupal
   const groupTierlist = await getOrCreateGroupTierlist(userPlaylistId);
 
-  // Actualizar la tierlist grupal
   const result = await db
     .update(groupTierlists)
     .set({
@@ -888,7 +917,7 @@ export async function updateGroupTierlist(userPlaylistId: number) {
 // Corregir la función getFullPlaylistData para manejar correctamente los tipos
 export async function getFullPlaylistData(playlistId: number) {
   const db = getDbConnection();
-  const playlistData = await db
+  const playlistData: any = await db
     .select()
     .from(playlists)
     .where(sql`${playlists.id} = ${playlistId}`);
@@ -900,8 +929,8 @@ export async function getFullPlaylistData(playlistId: number) {
   const playlist = playlistData[0];
 
   // Obtener los artistas de la playlist
-  const artistIds = playlist.artistIds || [];
-  let artistsData = [];
+  const artistIds: string[] = playlist.artistIds || [];
+  let artistsData: any[] = [];
 
   if (artistIds && artistIds.length > 0) {
     // Asegurarse de que artistIds es un array de strings
@@ -909,8 +938,8 @@ export async function getFullPlaylistData(playlistId: number) {
 
     // Obtener los artistas uno por uno para evitar problemas de tipo
     artistsData = await Promise.all(
-      artistIdsArray.map(async (spotifyId) => {
-        const artistResult = await db
+      artistIdsArray.map(async (spotifyId: string) => {
+    const artistResult: any = await db
           .select()
           .from(artists)
           .where(sql`${artists.spotifyId} = ${spotifyId.toString()}`)
@@ -951,7 +980,7 @@ export async function getFullPlaylistDataBySpotifyId(spotifyId: string) {
       ...playlist,
       artists: artistsData,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       "Error al obtener datos completos de playlist por Spotify ID:",
       error
@@ -977,7 +1006,7 @@ export async function getPlaylistUserCount(
     const db = getDbConnection();
 
     // Obtener todas las userPlaylists para esta playlist
-    const userPlaylistsResult = await db
+    const userPlaylistsResult: any[] = await db
       .select()
       .from(userPlaylists)
       .where(sql`${userPlaylists.playlistId} = ${playlistId}`)
@@ -989,13 +1018,13 @@ export async function getPlaylistUserCount(
 
     // Contar usuarios únicos en todos los arrays usersIds
     const allUserIds = new Set();
-    userPlaylistsResult.forEach((userPlaylist) => {
-      const usersIds = userPlaylist.usersIds || [];
-      usersIds.forEach((userId) => allUserIds.add(userId));
+    userPlaylistsResult.forEach((userPlaylist: any) => {
+      const usersIds: any[] = userPlaylist.usersIds || [];
+      usersIds.forEach((userId: any) => allUserIds.add(userId));
     });
 
     return allUserIds.size;
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       "Error al obtener el conteo de usuarios de la playlist:",
       error
@@ -1084,7 +1113,7 @@ export async function migrateDatabase() {
       success: true,
       message: "Base de datos creada correctamente desde cero",
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error durante la creación de la base de datos:", error);
     return { success: false, error: error.message };
   }
@@ -1152,7 +1181,7 @@ export async function getPlaylistRankings(userPlaylistId: number) {
     );
 
     return rankings;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener rankings de la playlist:", error);
     throw error;
   }
@@ -1203,7 +1232,7 @@ export async function hideUserTierlists(userId: number, playlistId: number) {
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al ocultar la playlist:", error);
     throw error;
   }
@@ -1260,7 +1289,7 @@ export async function unhideUserTierlists(userId: number, playlistId: number) {
     }
 
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al mostrar la playlist:", error);
     throw error;
   }
@@ -1300,7 +1329,7 @@ export async function debugUserPlaylists(userId: number) {
       matching: matchingPlaylists.length,
       details: matchingPlaylists,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en debugUserPlaylists:", error);
     return { error: error.message };
   }
@@ -1362,8 +1391,150 @@ export async function fixUserPlaylistsArrays() {
       fixed: fixedCount,
       success: true,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en fixUserPlaylistsArrays:", error);
     return { error: error.message, success: false };
+  }
+}
+
+export async function seedDemoPlaylist() {
+  const db = getDbConnection();
+
+  try {
+    const userRows = await db
+      .select()
+      .from(users)
+      .where(sql`${users.email} = ${DEMO_EMAIL}`)
+      .execute();
+
+    if (userRows.length === 0) {
+      return { success: false, error: "Demo user not found" };
+    }
+
+    const demoUser = userRows[0];
+
+    const existingPlaylists = await db
+      .select()
+      .from(userPlaylists)
+      .where(sql`${userPlaylists.usersIds}::jsonb @> ${JSON.stringify([demoUser.id])}::jsonb`)
+      .execute();
+
+    if (existingPlaylists.length > 0) {
+      return { success: true, message: "Demo user already has playlists" };
+    }
+
+    let existingPlaylist = null;
+    try {
+      const playlistResult = await db
+        .select()
+        .from(playlists)
+        .where(sql`${playlists.spotifyId} = ${DEMO_PLAYLIST_ID}`)
+        .execute();
+      existingPlaylist = playlistResult[0] || null;
+    } catch (e) {
+      // ignore
+    }
+
+    if (!existingPlaylist) {
+      const tokenResponse = await fetch(
+        "https://accounts.spotify.com/api/token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${Buffer.from(
+              `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+            ).toString("base64")}`,
+          },
+          body: new URLSearchParams({ grant_type: "client_credentials" }),
+        }
+      );
+
+      if (!tokenResponse.ok) {
+        return { success: false, error: "Failed to get Spotify token" };
+      }
+
+      const tokenData = await tokenResponse.json();
+
+      const playlistResponse = await fetch(
+        `https://api.spotify.com/v1/playlists/${DEMO_PLAYLIST_ID}?market=ES`,
+        {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        }
+      );
+
+      if (!playlistResponse.ok) {
+        return { success: false, error: "Failed to fetch playlist from Spotify" };
+      }
+
+      const spotifyData = await playlistResponse.json();
+
+      const artistSpotifyIds = spotifyData.tracks.items.map(
+        (item: any) => item.track.artists[0].id
+      );
+      const uniqueArtistIds = [...new Set(artistSpotifyIds)];
+
+      const [playlist] = await db
+        .insert(playlists)
+        .values({
+          spotifyId: spotifyData.id,
+          name: spotifyData.name,
+          description: spotifyData.description || "",
+          image: spotifyData.images?.[0]?.url || "",
+          artistIds: uniqueArtistIds,
+        })
+        .returning();
+
+      for (const spotifyId of uniqueArtistIds) {
+        const existing = await db
+          .select()
+          .from(artists)
+          .where(sql`${artists.spotifyId} = ${spotifyId}`)
+          .execute();
+
+        if (existing.length === 0) {
+          const track = spotifyData.tracks.items.find(
+            (item: any) => item.track.artists[0].id === spotifyId
+          );
+          if (track) {
+            const artist = track.track.artists[0];
+            await db
+              .insert(artists)
+              .values({
+                spotifyId: artist.id,
+                name: artist.name,
+                image: artist.images?.[0]?.url || "",
+              })
+              .execute();
+          }
+        }
+      }
+
+      existingPlaylist = playlist;
+    }
+
+    const [userPlaylist] = await db
+      .insert(userPlaylists)
+      .values({
+        playlistId: existingPlaylist.id,
+        isPrivate: false,
+        usersIds: [demoUser.id],
+      })
+      .returning();
+
+    await db
+      .insert(tierlists)
+      .values({
+        userId: demoUser.id,
+        userPlaylistId: userPlaylist.id,
+        ratings: {},
+        isHidden: false,
+      })
+      .execute();
+
+    return { success: true, message: "Demo playlist seeded successfully" };
+  } catch (error: any) {
+    console.error("Error seeding demo playlist:", error);
+    return { success: false, error: error.message };
   }
 }

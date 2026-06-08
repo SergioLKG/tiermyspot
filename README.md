@@ -37,7 +37,7 @@ REDIRECT_URI=http://localhost:3000/api/callback/spotify
 ### 4. Ejecutar el proyecto
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ## 🎨 Tecnologías Utilizadas

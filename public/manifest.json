@@ -1,0 +1,27 @@
+{
+  "name": "Tiermyspot",
+  "short_name": "Tiermyspot",
+  "description": "Crea tierlists de tus artistas favoritos de Spotify",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "orientation": "portrait-primary",
+  "lang": "es-ES",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["entertainment", "music", "social"],
+  "screenshots": []
+}

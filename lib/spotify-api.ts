@@ -1,5 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 // Tipos para tipado seguro
 interface SpotifyTokens {
@@ -88,7 +88,7 @@ export async function refreshSpotifyToken(
       refreshToken: data.refresh_token || refreshToken,
       expiresAt: Date.now() + data.expires_in * 1000,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in getAccessToken:", error);
     throw error;
   }
@@ -185,7 +185,7 @@ async function spotifyFetch(
       }
 
       return response;
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof SpotifyAPIError && error.status === 401) {
         // Intentar refrescar el token
         try {
@@ -236,7 +236,7 @@ export async function getAccessToken(session: any): Promise<string> {
       const newTokens = await refreshSpotifyToken(session.refreshToken);
       // Aquí deberías implementar la lógica para guardar los nuevos tokens
       return newTokens.accessToken;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error("No se pudo obtener un token de acceso válido");
     }
   }
@@ -253,7 +253,7 @@ export async function getPlaylistTracks(
   const cachedData = playlistCache.get(cacheKey);
 
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
-    console.log("chache:do");
+    console.log("cache: hit");
     return cachedData.data;
   }
 
@@ -347,7 +347,7 @@ export async function processPlaylistData(
     } finally {
       clearTimeout(timeoutId);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.log(
       "Error al verificar playlist en base de datos, continuando con importación:",
       error
@@ -413,7 +413,7 @@ export async function processPlaylistData(
         } else {
           console.warn("Failed to fetch artist details, using default images.");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Error fetching artist details:", error);
       }
     }

@@ -62,7 +62,7 @@ export default function LoginPage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error en modo demo:", error);
     } finally {
       setIsDemoLoading(false);

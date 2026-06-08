@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { getFullPlaylistDataBySpotifyId } from "@/lib/db"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const spotifyId = params.id
+    const { id: spotifyId } = await params
 
     if (!spotifyId) {
       return NextResponse.json({ error: "ID de Spotify no proporcionado" }, { status: 400 })

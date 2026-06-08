@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET ? "✓ Configurado" : "✗ No configurado",
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en la depuración:", error)
     return NextResponse.json(
       {

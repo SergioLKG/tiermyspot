@@ -36,7 +36,7 @@ export default function ImportPlaylistPage() {
     }
   }, [status, router, isDemo]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
@@ -100,7 +100,7 @@ export default function ImportPlaylistPage() {
       setTimeout(() => {
         router.push("/tierlist");
       }, 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error:", error);
       setError(error.message);
     } finally {
@@ -125,7 +125,7 @@ export default function ImportPlaylistPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="import" />
-        <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
           <div className="max-w-md w-full">
             <div className="bg-card p-6 rounded-lg border shadow-sm">
               <div className="flex flex-col items-center text-center gap-4">
@@ -162,7 +162,7 @@ export default function ImportPlaylistPage() {
     <div className="flex flex-col min-h-screen">
       <Header activePage="import" />
 
-      <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
         <div className="max-w-md w-full">
           <div className="bg-card p-6 rounded-lg border shadow-sm">
             <h1 className="text-2xl font-bold mb-6">Importar Playlist</h1>

@@ -6,10 +6,14 @@ export default function Loading() {
       <header className="h-16 bg-card border-b flex items-center px-4 md:px-6">
         <div className="h-8 w-32 bg-muted rounded animate-pulse" />
       </header>
-      <main id="main-content" className="flex-1 flex items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-green-600" />
-          <p className="text-lg text-muted-foreground">Cargando tierlist grupal...</p>
+      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-48 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
         </div>
       </main>
       <footer className="h-12 bg-card border-t" />

@@ -14,9 +14,9 @@ import { Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 
 export default function DebugPage() {
   const [loading, setLoading] = useState(true);
-  const [dbStatus, setDbStatus] = useState(null);
-  const [spotifyStatus, setSpotifyStatus] = useState(null);
-  const [error, setError] = useState(null);
+  const [dbStatus, setDbStatus] = useState<any>(null);
+  const [spotifyStatus, setSpotifyStatus] = useState<any>(null);
+  const [error, setError] = useState<any>(null);
 
   const checkConnections = async () => {
     setLoading(true);
@@ -32,7 +32,7 @@ export default function DebugPage() {
       const spotifyResponse = await fetch("/api/spotify-check");
       const spotifyData = await spotifyResponse.json();
       setSpotifyStatus(spotifyData);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ export default function DebugPage() {
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Variables de entorno:</h4>
                     <ul className="space-y-1 text-sm">
-                      {Object.entries(dbStatus.envVars).map(([key, value]) => (
+                      {Object.entries(dbStatus.envVars).map(([key, value]: [string, any]) => (
                         <li key={key} className="flex items-start">
                           <span className="font-mono bg-muted px-1 rounded mr-2">
                             {key}:
@@ -167,7 +167,7 @@ export default function DebugPage() {
                     <h4 className="font-medium mb-2">Configuración:</h4>
                     <ul className="space-y-1 text-sm">
                       {Object.entries(spotifyStatus.spotifyConfig).map(
-                        ([key, value]) => (
+                        ([key, value]: [string, any]) => (
                           <li key={key} className="flex items-start">
                             <span className="font-mono bg-muted px-1 rounded mr-2">
                               {key}:
@@ -182,7 +182,7 @@ export default function DebugPage() {
                   <div className="mt-4 bg-blue-50 p-3 rounded border border-blue-200 text-black">
                     <h4 className="font-medium mb-2">Instrucciones:</h4>
                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                      {spotifyStatus.pasos.map((paso, index) => (
+                      {spotifyStatus.pasos.map((paso: any, index: any) => (
                         <li key={index}>{paso}</li>
                       ))}
                     </ul>

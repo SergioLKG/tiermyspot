@@ -30,6 +30,7 @@ export const metadata: Metadata = {
   description: description,
   icons: {
     icon: "/logo.svg",
+    apple: "/logo.svg",
   },
   openGraph: {
     url: "https://tiermyspot.vercel.app",
@@ -204,6 +205,12 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-green-600 focus:text-white focus:rounded-md focus:outline-none"
+        >
+          Saltar al contenido principal
+        </a>
         <SessionProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             {children}

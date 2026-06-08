@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
     // Verificar las variables de entorno de Spotify
     const spotifyConfig = {
       clientId: process.env.SPOTIFY_CLIENT_ID ? "✓ Configurado" : "✗ No configurado",
@@ -46,7 +53,7 @@ export async function GET() {
         } else {
           spotifyApiStatus = `Error al obtener token: ${tokenResponse.status} ${tokenResponse.statusText}`
         }
-      } catch (error) {
+      } catch (error: any) {
         spotifyApiStatus = `Error de conexión: ${error.message}`
       }
     }
@@ -65,7 +72,7 @@ export async function GET() {
         "4. Asegúrate de que los scopes solicitados sean correctos",
       ],
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error en la verificación de Spotify:", error)
     return NextResponse.json(
       {

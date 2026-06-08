@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 import { getUserByEmail, getUserPlaylist, getTierlist, getOrCreateTierlist } from "@/lib/db"
 
 export async function GET(request: NextRequest) {
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(tierlist)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error al obtener tierlist:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

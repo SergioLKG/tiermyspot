@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -14,6 +14,8 @@ import { ArtistCard } from "@/components/artist-card";
 import { cachedFetch } from "@/lib/api-cache";
 import { NoPlaylistModal } from "@/components/no-playlist-modal";
 import { TierlistExport } from "@/components/tierlist-export";
+import { useToast } from "@/components/ui/use-toast";
+import { usePersistentState } from "@/hooks/use-persistent-state";
 
 // Default tiers
 const TIERS = [
@@ -60,23 +62,25 @@ const TIERS = [
 ];
 
 export default function TierlistPage() {
+  const { toast } = useToast();
   const { data: session, status }: any = useSession();
-  const [artists, setArtists]: any = useState([]);
-  const [rankings, setRankings]: any = useState({});
+  const [artists, setArtists]: any = useState<any[]>([]);
+  const [rankings, setRankings]: any = usePersistentState<Record<string, any>>("tierlist-rankings", {});
   const [playlistName, setPlaylistName]: any = useState("");
   const [playlistImage, setPlaylistImage]: any = useState("");
   const [playlistId, setPlaylistId]: any = useState("");
   const [userPlaylistId, setUserPlaylistId]: any = useState("");
-  const [playingTrack, setPlayingTrack]: any = useState(null);
-  const [audio, setAudio]: any = useState(null);
+  const [playingTrack, setPlayingTrack]: any = useState<any>(null);
+  const [audio, setAudio]: any = useState<any>(null);
   const [currentTrackIndices, setCurrentTrackIndices]: any = useState({});
   const [isLoading, setIsLoading]: any = useState(true);
-  const [error, setError]: any = useState(null);
+  const [error, setError]: any = useState<any>(null);
   const [loadingMessage, setLoadingMessage]: any = useState("");
   const [showNoPlaylistModal, setShowNoPlaylistModal]: any = useState(false);
   const router: any = useRouter();
   const searchParams: any = useSearchParams();
   const tierlistRef: any = useRef(null);
+  const debounceRef: any = useRef<NodeJS.Timeout | null>(null);
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -152,7 +156,7 @@ export default function TierlistPage() {
           // Si hay un error o no hay tierlist, inicializar con un objeto vacío
           setRankings({});
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error al cargar datos:", err);
         setError("Error al cargar los datos. Por favor, intenta de nuevo.");
       } finally {
@@ -186,34 +190,54 @@ export default function TierlistPage() {
         setRankings(newRankings);
       }
 
-      // Enviar a la API
-      const response = await fetch("/api/rankings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          playlistId,
-          artistId,
-          tierId: rankings[artistId] === tierId ? null : tierId,
-          privateName: getSelectedPlaylist()?.privateName,
-        }),
-      });
-
-      if (!response.ok) {
-        // Si hay un error, revertir el cambio local
-        console.error("Error al guardar ranking:", await response.text());
-        setRankings({ ...rankings }); // Restaurar el estado anterior
-
-        // Mostrar un mensaje de error al usuario
-        alert("Error al guardar el ranking. Por favor, inténtalo de nuevo.");
+      // Cancelar la llamada anterior si existe (debounce)
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
       }
-    } catch (error) {
+
+      // Esperar 500ms antes de enviar a la API
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const response = await fetch("/api/rankings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              playlistId,
+              artistId,
+              tierId: rankings[artistId] === tierId ? null : tierId,
+              privateName: getSelectedPlaylist()?.privateName,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error("Error al guardar ranking:", await response.text());
+            setRankings({ ...rankings });
+            toast({
+              title: "Error",
+              description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
+              variant: "destructive",
+            });
+          }
+        } catch (error: any) {
+          console.error("Error al guardar ranking:", error);
+          setRankings({ ...rankings });
+          toast({
+            title: "Error",
+            description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
+            variant: "destructive",
+          });
+        }
+      }, 500);
+    } catch (error: any) {
       console.error("Error al guardar ranking:", error);
-      // Revertir el cambio local
       setRankings({ ...rankings });
-      // Mostrar un mensaje de error al usuario
-      alert("Error al guardar el ranking. Por favor, inténtalo de nuevo.");
+      toast({
+        title: "Error",
+        description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -245,7 +269,7 @@ export default function TierlistPage() {
 
       // Configurar eventos
       newAudio.addEventListener("canplay", () => {
-        newAudio.play().catch((error) => {
+        newAudio.play().catch((error: any) => {
           console.error("Error al reproducir audio:", error);
         });
       });
@@ -266,8 +290,8 @@ export default function TierlistPage() {
     }
   };
 
-  const handleNextTrack = (artistId) => {
-    const artist = artists.find((a) => a.id === artistId);
+  const handleNextTrack = (artistId: any) => {
+    const artist = artists.find((a: any) => a.id === artistId);
     if (!artist) return;
 
     const currentIndex = currentTrackIndices[artistId];
@@ -284,8 +308,8 @@ export default function TierlistPage() {
     }
   };
 
-  const handlePrevTrack = (artistId) => {
-    const artist = artists.find((a) => a.id === artistId);
+  const handlePrevTrack = (artistId: any) => {
+    const artist = artists.find((a: any) => a.id === artistId);
     if (!artist) return;
 
     const currentIndex = currentTrackIndices[artistId];
@@ -327,7 +351,7 @@ export default function TierlistPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="tierlist" />
-        <main className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
           <div className="max-w-md w-full">
             <div className="bg-destructive/10 p-6 rounded-lg border border-destructive/20 flex flex-col items-center">
               <div className="text-destructive mb-4">
@@ -382,7 +406,7 @@ export default function TierlistPage() {
     <div className="flex flex-col min-h-screen">
       <Header activePage="tierlist" />
 
-      <main className="flex-1 p-4 md:p-6 bg-muted/30">
+      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -436,8 +460,8 @@ export default function TierlistPage() {
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {artists
-                      .filter((artist) => rankings[artist.id] === tier.id)
-                      .map((artist) => (
+                      .filter((artist: any) => rankings[artist.id] === tier.id)
+                      .map((artist: any) => (
                         <ArtistCard
                           key={artist.id}
                           artist={artist}
@@ -492,8 +516,8 @@ export default function TierlistPage() {
             <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
             <div className="flex flex-wrap gap-4">
               {artists
-                .filter((artist) => !rankings[artist.id])
-                .map((artist) => (
+                .filter((artist: any) => !rankings[artist.id])
+                .map((artist: any) => (
                   <ArtistCard
                     key={artist.id}
                     artist={artist}
