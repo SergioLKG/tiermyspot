@@ -71,8 +71,10 @@ export default function GroupTierlistPage() {
   const [playlistName, setPlaylistName] = useState("");
   const [playlistImage, setPlaylistImage] = useState("");
   const [playlistId, setPlaylistId] = useState("");
+  const [spotifyPlaylistUrl, setSpotifyPlaylistUrl] = useState("");
   const [userCount, setUserCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const dataLoadedRef = useRef(false);
   const [error, setError] = useState<any>(null);
   const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false);
   const [usersData, setUsersData] = useState<Record<string, any>>({});
@@ -89,9 +91,11 @@ export default function GroupTierlistPage() {
 
   // Modificar la función fetchData para usar la nueva estructura
   useEffect(() => {
-    const fetchData = async () => {
-      if (status !== "authenticated" || !session) return;
+    if (status !== "authenticated" || !session) return;
+    if (dataLoadedRef.current) return;
+    dataLoadedRef.current = true;
 
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         setError(null);
@@ -132,6 +136,11 @@ export default function GroupTierlistPage() {
           );
         }
         setPlaylistImage(data.playlist.image);
+        setSpotifyPlaylistUrl(
+          data.playlist.spotify_id
+            ? `https://open.spotify.com/playlist/${data.playlist.spotify_id}`
+            : ""
+        );
         setArtists(data.playlist.artists);
 
         // Inicializar índices de pistas actuales
@@ -142,8 +151,8 @@ export default function GroupTierlistPage() {
         setCurrentTrackIndices(initialIndices);
 
         // Establecer rankings grupales
-        setGroupRankings(data.groupTierlist.aggregatedRatings || {});
-        setUserCount(data.groupTierlist.userCount || 0);
+        setGroupRankings(data.groupTierlist.aggregated_ratings || {});
+        setUserCount(data.groupTierlist.user_count || 0);
 
         // Obtener votos de usuarios
         try {
@@ -175,7 +184,7 @@ export default function GroupTierlistPage() {
     };
 
     fetchData();
-  }, [router, session, status]);
+  }, [session?.user?.email, status]);
 
   const handlePlayTrack = (artist: any, trackIndex: any) => {
     const track = artist.tracks[trackIndex];
@@ -352,7 +361,19 @@ export default function GroupTierlistPage() {
                 <h1 className="text-3xl font-bold tracking-tight">
                   Tierlist Grupal
                 </h1>
-                <p className="text-muted-foreground">{playlistName}</p>
+                {spotifyPlaylistUrl ? (
+                  <a
+                    href={spotifyPlaylistUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary hover:underline transition-colors"
+                    title={`Abrir "${playlistName}" en Spotify`}
+                  >
+                    {playlistName}
+                  </a>
+                ) : (
+                  <p className="text-muted-foreground">{playlistName}</p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -393,7 +414,7 @@ export default function GroupTierlistPage() {
                 className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}
               >
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm">
+                  <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm aspect-square">
                     {tier.label}
                   </div>
                   <div className="flex flex-wrap gap-3">

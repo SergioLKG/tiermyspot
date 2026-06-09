@@ -73,18 +73,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener la tierlist grupal
-    let groupTierlist = await getGroupTierlist(userPlaylist.id);
-
-    // Si no existe, crearla
-    if (!groupTierlist) {
-      await updateGroupTierlist(userPlaylist.id);
-      groupTierlist = await getGroupTierlist(userPlaylist.id);
-    }
+    // Recalcular y obtener la tierlist grupal
+    const updateResult = await updateGroupTierlist(userPlaylist.id);
+    const groupTierlist = await getGroupTierlist(userPlaylist.id);
 
     return NextResponse.json({
       playlist: playlistData,
       groupTierlist,
+      _debug: {
+        userPlaylistId: userPlaylist.id,
+        updateResult: updateResult ? "ok" : "null",
+        hasAggregatedRatings: groupTierlist
+          ? Object.keys(groupTierlist.aggregated_ratings || {}).length
+          : -1,
+        userCount: groupTierlist?.user_count ?? -1,
+      },
     });
   } catch (error: any) {
     console.error("Error al obtener tierlist grupal:", error);

@@ -71,6 +71,7 @@ export default function TierlistPage() {
   const [playlistName, setPlaylistName]: any = useState("");
   const [playlistImage, setPlaylistImage]: any = useState("");
   const [playlistId, setPlaylistId]: any = useState("");
+  const [spotifyPlaylistUrl, setSpotifyPlaylistUrl]: any = useState("");
   const [userPlaylistId, setUserPlaylistId]: any = useState("");
   const [playingTrack, setPlayingTrack]: any = useState<any>(null);
   const [audio, setAudio]: any = useState<any>(null);
@@ -83,6 +84,7 @@ export default function TierlistPage() {
   const searchParams: any = useSearchParams();
   const tierlistRef: any = useRef(null);
   const debounceRef: any = useRef<NodeJS.Timeout | null>(null);
+  const dataLoadedRef = useRef(false);
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -93,9 +95,11 @@ export default function TierlistPage() {
 
   // Modificar la función fetchData para usar la nueva estructura
   useEffect(() => {
-    const fetchData = async () => {
-      if (status !== "authenticated" || !session) return;
+    if (status !== "authenticated" || !session) return;
+    if (dataLoadedRef.current) return;
+    dataLoadedRef.current = true;
 
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         setError(null);
@@ -132,6 +136,11 @@ export default function TierlistPage() {
             : playlistData.name
         );
         setPlaylistImage(playlistData.image);
+        setSpotifyPlaylistUrl(
+          playlistData.spotify_id
+            ? `https://open.spotify.com/playlist/${playlistData.spotify_id}`
+            : ""
+        );
         setArtists(playlistData.artists || []);
 
         // Inicializar índices de pistas actuales
@@ -179,7 +188,7 @@ export default function TierlistPage() {
         audio.src = "";
       }
     };
-  }, [router, session, status]);
+  }, [session?.user?.email, status]);
 
   const handleRankArtist = async (artistId: any, tierId: any) => {
     const isToggle = rankings[artistId] === tierId;
@@ -415,7 +424,19 @@ export default function TierlistPage() {
                 <h1 className="text-3xl font-bold tracking-tight">
                   Mi Tierlist
                 </h1>
-                <p className="text-muted-foreground">{playlistName}</p>
+                {spotifyPlaylistUrl ? (
+                  <a
+                    href={spotifyPlaylistUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary hover:underline transition-colors"
+                    title={`Abrir "${playlistName}" en Spotify`}
+                  >
+                    {playlistName}
+                  </a>
+                ) : (
+                  <p className="text-muted-foreground">{playlistName}</p>
+                )}
               </div>
             </div>
             <div className="flex gap-2">
@@ -448,7 +469,7 @@ export default function TierlistPage() {
                 className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}
               >
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm">
+                  <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm aspect-square">
                     {tier.label}
                   </div>
                   <div className="flex flex-wrap gap-3">

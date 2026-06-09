@@ -130,9 +130,9 @@ export default function Dashboard() {
   const activatePlaylist = (playlist: any) => {
     // Limpiar cualquier caché relacionada con tierlists
     if (typeof window !== "undefined") {
-      Object.keys(sessionStorage).forEach((key) => {
+      Object.keys(localStorage).forEach((key) => {
         if (key.startsWith("tierlist-")) {
-          sessionStorage.removeItem(key);
+          localStorage.removeItem(key);
         }
       });
     }

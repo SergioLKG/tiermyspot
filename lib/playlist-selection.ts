@@ -40,3 +40,4 @@ export function setSelectedPlaylist(playlistData: {
 export function clearSelectedPlaylist() {
   Cookies.remove(SELECTED_PLAYLIST_COOKIE, { path: "/" })
 }
+

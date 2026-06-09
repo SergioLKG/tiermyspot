@@ -89,8 +89,8 @@ export default function ImportPlaylistPage() {
       // Guardar la playlist seleccionada en una cookie
       setSelectedPlaylist({
         id: data.playlistId,
-        name: data.playlistName,
-        image: data.playlistImage,
+        name: data.name,
+        image: data.image,
         isPrivate,
         privateName: isPrivate ? privateName : "",
         userPlaylistId: data.userPlaylistId,

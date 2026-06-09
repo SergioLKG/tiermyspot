@@ -11,7 +11,7 @@ export function usePersistentState<T>(
   const [state, setState] = useState<T>(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = sessionStorage.getItem(key)
+        const stored = localStorage.getItem(key)
         if (stored !== null) return JSON.parse(stored)
       } catch {}
     }
@@ -20,7 +20,7 @@ export function usePersistentState<T>(
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      sessionStorage.setItem(key, JSON.stringify(state))
+      localStorage.setItem(key, JSON.stringify(state))
     }
   }, [key, state])
 
@@ -39,7 +39,7 @@ export function usePersistentState<T>(
     setState((prev: T) => {
       const nextValue = typeof value === "function" ? (value as (val: T) => T)(prev) : value
       try {
-        sessionStorage.setItem(key, JSON.stringify(nextValue))
+        localStorage.setItem(key, JSON.stringify(nextValue))
       } catch (e) {
         console.error("Error persisting state:", e)
       }
@@ -52,9 +52,9 @@ export function usePersistentState<T>(
 
 export function clearPersistentStates(prefix: string) {
   if (typeof window !== "undefined") {
-    Object.keys(sessionStorage).forEach((key) => {
+    Object.keys(localStorage).forEach((key) => {
       if (key.startsWith(prefix)) {
-        sessionStorage.removeItem(key)
+        localStorage.removeItem(key)
       }
     })
   }

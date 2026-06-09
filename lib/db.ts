@@ -198,10 +198,12 @@ export async function getUserPlaylist(
 
     if (!usersIds.includes(userId)) {
       usersIds.push(userId);
-      await sql`
+      const updated = await sql`
         UPDATE user_playlists SET users_ids = ${JSON.stringify(usersIds)}
         WHERE id = ${userPlaylist.id}
+        RETURNING *
       `;
+      return safeSerialize(updated[0]);
     }
 
     return safeSerialize(userPlaylist);
@@ -595,10 +597,6 @@ export async function updateGroupTierlist(userPlaylistId: number) {
     SELECT * FROM tierlists
     WHERE user_playlist_id = ${userPlaylistId} AND is_hidden = false
   `;
-
-  if (tierlistsResult.length === 0) {
-    return null;
-  }
 
   const aggregatedRatings: Record<string, any> = {};
   const uniqueUserIds = new Set();
