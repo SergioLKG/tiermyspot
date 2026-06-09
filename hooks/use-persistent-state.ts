@@ -1,67 +1,55 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 
-// Hook personalizado para mantener el estado entre cambios de pestaña
 export function usePersistentState<T>(
   key: string,
   initialValue: T,
-  dependencies: any[] = [],
 ): [T, (value: T | ((val: T) => T)) => void] {
-  // Inicializar el estado
+  const initialValueRef = useRef(initialValue)
+
   const [state, setState] = useState<T>(() => {
-    // Intentar obtener el valor del sessionStorage
     if (typeof window !== "undefined") {
-      const storedValue = sessionStorage.getItem(key)
-      if (storedValue) {
-        try {
-          return JSON.parse(storedValue)
-        } catch (error) {
-          console.error("Error parsing stored value:", error)
-          return initialValue
-        }
-      }
+      try {
+        const stored = sessionStorage.getItem(key)
+        if (stored !== null) return JSON.parse(stored)
+      } catch {}
     }
-    return initialValue
+    return initialValueRef.current
   })
 
-  // Actualizar sessionStorage cuando el estado cambie
   useEffect(() => {
     if (typeof window !== "undefined") {
       sessionStorage.setItem(key, JSON.stringify(state))
     }
   }, [key, state])
 
-  // Recargar el estado cuando cambien las dependencias
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedValue = sessionStorage.getItem(key)
-      if (storedValue) {
-        try {
-          setState(JSON.parse(storedValue))
-        } catch (error) {
-          console.error("Error parsing stored value:", error)
-          setState(initialValue)
-        }
-      } else {
-        setState(initialValue)
+    if (typeof window === "undefined") return
+    const handler = (e: StorageEvent) => {
+      if (e.key === key && e.newValue !== null) {
+        try { setState(JSON.parse(e.newValue)) } catch {}
       }
     }
-  }, [key, initialValue, ...dependencies])
+    window.addEventListener("storage", handler)
+    return () => window.removeEventListener("storage", handler)
+  }, [key])
 
-  // Función para limpiar el estado persistente
-  const setStateAndPersist = (value: T | ((val: T) => T)) => {
-    setState(value)
-    if (typeof window !== "undefined") {
-      const newValue = typeof value === "function" ? (value as (val: T) => T)(state) : value
-      sessionStorage.setItem(key, JSON.stringify(newValue))
-    }
-  }
+  const setStateAndPersist = useCallback((value: T | ((val: T) => T)) => {
+    setState((prev: T) => {
+      const nextValue = typeof value === "function" ? (value as (val: T) => T)(prev) : value
+      try {
+        sessionStorage.setItem(key, JSON.stringify(nextValue))
+      } catch (e) {
+        console.error("Error persisting state:", e)
+      }
+      return nextValue
+    })
+  }, [key])
 
   return [state, setStateAndPersist]
 }
 
-// Función para limpiar todos los estados persistentes relacionados con un prefijo
 export function clearPersistentStates(prefix: string) {
   if (typeof window !== "undefined") {
     Object.keys(sessionStorage).forEach((key) => {

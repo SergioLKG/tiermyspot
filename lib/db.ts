@@ -603,29 +603,7 @@ export async function updateGroupTierlist(userPlaylistId: number) {
   const aggregatedRatings: Record<string, any> = {};
   const uniqueUserIds = new Set();
 
-  const userIds = tierlistsResult.map((t: any) => t.user_id);
-
-  let usersInfo: any[];
-  if (userIds.length > 0) {
-    usersInfo = await sql`
-      SELECT id, email FROM users WHERE id = ANY(${userIds}::int[])
-    `;
-  } else {
-    usersInfo = [];
-  }
-
-  const demoUsers = new Set();
-  usersInfo.forEach((user: any) => {
-    if (user.email === "demo@tiermyspot.com") {
-      demoUsers.add(user.id);
-    }
-  });
-
   tierlistsResult.forEach((tierlist: any) => {
-    if (demoUsers.has(tierlist.user_id)) {
-      return;
-    }
-
     uniqueUserIds.add(tierlist.user_id);
 
     let ratings = tierlist.ratings || {};

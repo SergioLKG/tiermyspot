@@ -14,6 +14,7 @@ import { ArtistCard } from "@/components/artist-card";
 import { NoPlaylistModal } from "@/components/no-playlist-modal";
 import { UserVotesPopup } from "@/components/user-votes-popup";
 import { TierlistExport } from "@/components/tierlist-export";
+import { handlePlaylistImageError } from "@/lib/refresh-image";
 
 // Default tiers
 const TIERS = [
@@ -146,8 +147,11 @@ export default function GroupTierlistPage() {
 
         // Obtener votos de usuarios
         try {
+          const privateNameParam = selectedPlaylist.privateName
+            ? `&privateName=${encodeURIComponent(selectedPlaylist.privateName)}`
+            : "";
           const votesResponse = await fetch(
-            `/api/group-tierlist/${playlistId}`
+            `/api/group-tierlist/${playlistId}?t=${Date.now()}${privateNameParam}`
           );
           if (votesResponse.ok) {
             const votesData = await votesResponse.json();
@@ -340,6 +344,7 @@ export default function GroupTierlistPage() {
                     alt={playlistName}
                     fill
                     className="object-cover"
+                    onError={(e) => handlePlaylistImageError(playlistId, e.target)}
                   />
                 </div>
               )}

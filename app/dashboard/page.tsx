@@ -16,6 +16,8 @@ import {
 import { Import, X, AlertTriangle, Check, AlertCircle } from "lucide-react";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { ImportPlaylistModal } from "@/components/import-playlist-modal";
+import { handlePlaylistImageError } from "@/lib/refresh-image";
 import {
   Dialog,
   DialogContent,
@@ -297,7 +299,9 @@ export default function Dashboard() {
                     </Tooltip>
                   </TooltipProvider>
                 ) : (
-                  <Link href="/import-playlist">
+                  <ImportPlaylistModal
+                    onPlaylistImported={() => window.location.reload()}
+                  >
                     <Button
                       className="w-full"
                       title="Importar Playlist"
@@ -306,7 +310,7 @@ export default function Dashboard() {
                       <Import className="mr-2 h-4 w-4" />
                       Importar Playlist
                     </Button>
-                  </Link>
+                  </ImportPlaylistModal>
                 )}
               </CardContent>
             </Card>
@@ -354,7 +358,9 @@ export default function Dashboard() {
                       </Tooltip>
                     </TooltipProvider>
                   ) : (
-                    <Link href="/import-playlist">
+                    <ImportPlaylistModal
+                      onPlaylistImported={() => window.location.reload()}
+                    >
                       <Button
                         variant="outline"
                         title="Importar Playlist"
@@ -362,7 +368,7 @@ export default function Dashboard() {
                       >
                         Importar Playlist
                       </Button>
-                    </Link>
+                    </ImportPlaylistModal>
                   )}
                 </CardContent>
               </Card>
@@ -376,6 +382,7 @@ export default function Dashboard() {
                         alt={playlist.name}
                         fill
                         className="object-cover"
+                        onError={(e) => handlePlaylistImageError(playlist.id, e.target)}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
                         <div>
@@ -446,7 +453,9 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mb-4">
                     No tienes playlists privadas
                   </p>
-                  <Link href="/import-playlist">
+                  <ImportPlaylistModal
+                    onPlaylistImported={() => window.location.reload()}
+                  >
                     <Button
                       variant="outline"
                       title="Crear Playlist Privada"
@@ -454,12 +463,12 @@ export default function Dashboard() {
                     >
                       Crear Playlist Privada
                     </Button>
-                  </Link>
+                  </ImportPlaylistModal>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {privatePlaylists.map((playlist) => (
+                  {privatePlaylists.map((playlist) => (
                   <Card
                     key={`${playlist.id}-${playlist.privateName}`}
                     className="overflow-hidden"
@@ -471,6 +480,7 @@ export default function Dashboard() {
                         fill
                         loading="eager"
                         className="object-cover"
+                        onError={(e) => handlePlaylistImageError(playlist.id, e.target)}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
                         <div>

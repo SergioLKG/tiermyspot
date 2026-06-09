@@ -16,13 +16,15 @@ import {
 
 export function ArtistCard({ artist, children, ...props }: { artist: any; children: any; [key: string]: any }) {
   const [isEmbedOpen, setIsEmbedOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   // Asegurarnos de que la imagen del artista sea válida
   const artistImage =
-    artist.image ||
-    `/placeholder.svg?height=100&width=100&text=${encodeURIComponent(
-      artist.name?.substring(0, 2) || "?"
-    )}`;
+    !imgError && artist.image
+      ? artist.image
+      : `/placeholder.svg?height=100&width=100&text=${encodeURIComponent(
+          artist.name?.substring(0, 2) || "?"
+        )}`;
 
   // Generar la URL del embed de Spotify
   const spotifyEmbedUrl = artist.spotifyId
@@ -39,6 +41,7 @@ export function ArtistCard({ artist, children, ...props }: { artist: any; childr
             width={80}
             height={80}
             className="rounded-md mx-auto shadow-sm z-[5]"
+            onError={() => setImgError(true)}
           />
           {spotifyEmbedUrl && (
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-md flex items-center justify-center transition-opacity">

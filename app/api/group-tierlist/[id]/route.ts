@@ -5,6 +5,7 @@ import {
   getFullPlaylistData,
   getPlaylistRankings,
   getUserByEmail,
+  getUserPlaylist,
 } from "@/lib/db";
 
 export async function GET(
@@ -27,9 +28,18 @@ export async function GET(
       );
     }
 
-    // Obtener datos completos de la playlist
-    const playlistData = await getFullPlaylistData(Number.parseInt(playlistId));
+    const { searchParams } = new URL(request.url);
+    const privateName = searchParams.get("privateName") || undefined;
 
+    const playlistIdNum = Number.parseInt(playlistId);
+    if (isNaN(playlistIdNum)) {
+      return NextResponse.json(
+        { error: "ID de playlist inválido" },
+        { status: 400 }
+      );
+    }
+
+    const playlistData = await getFullPlaylistData(playlistIdNum);
     if (!playlistData) {
       return NextResponse.json(
         { error: "Playlist no encontrada" },
@@ -37,19 +47,34 @@ export async function GET(
       );
     }
 
-    // Obtener todos los rankings para esta playlist
-    const rankings = await getPlaylistRankings(Number.parseInt(playlistId));
-
-    // Obtener el usuario actual
     const currentUser = await getUserByEmail(session.user.email);
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Usuario no encontrado" },
+        { status: 404 }
+      );
+    }
 
-    // Calcular rankings grupales
+    const userPlaylist = await getUserPlaylist(
+      currentUser.id,
+      playlistIdNum,
+      privateName
+    );
+
+    if (!userPlaylist) {
+      return NextResponse.json(
+        { error: "Relación usuario-playlist no encontrada" },
+        { status: 404 }
+      );
+    }
+
+    const rankings = await getPlaylistRankings(userPlaylist.id);
+
     const groupRankings = calculateGroupRankings(
       rankings,
       playlistData.artists
     );
 
-    // Preparar datos de usuarios para el frontend
     const usersData: any = {};
     rankings.forEach((ranking) => {
       if (ranking.userId && !usersData[ranking.userId]) {
@@ -64,7 +89,7 @@ export async function GET(
       playlist: playlistData,
       groupRankings,
       currentUserId: currentUser?.id,
-      users: usersData, // Añadir los datos de usuarios aquí
+      users: usersData,
     });
   } catch (error: any) {
     console.error("Error al obtener tierlist grupal:", error);

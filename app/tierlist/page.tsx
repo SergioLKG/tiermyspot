@@ -16,6 +16,8 @@ import { NoPlaylistModal } from "@/components/no-playlist-modal";
 import { TierlistExport } from "@/components/tierlist-export";
 import { useToast } from "@/components/ui/use-toast";
 import { usePersistentState } from "@/hooks/use-persistent-state";
+import { ImportPlaylistModal } from "@/components/import-playlist-modal";
+import { handlePlaylistImageError } from "@/lib/refresh-image";
 
 // Default tiers
 const TIERS = [
@@ -148,13 +150,16 @@ export default function TierlistPage() {
         );
 
         if (tierlistData && !tierlistData.error) {
-          setRankings(tierlistData.ratings || {});
+          setRankings((prev: any) => {
+            const apiRatings = tierlistData.ratings || {};
+            if (Object.keys(prev).length === 0) return apiRatings;
+            return { ...apiRatings, ...prev };
+          });
           if (tierlistData.userPlaylistId) {
             setUserPlaylistId(tierlistData.userPlaylistId);
           }
         } else {
-          // Si hay un error o no hay tierlist, inicializar con un objeto vacío
-          setRankings({});
+          setRankings((prev: any) => Object.keys(prev).length > 0 ? prev : {});
         }
       } catch (err: any) {
         console.error("Error al cargar datos:", err);
@@ -177,68 +182,53 @@ export default function TierlistPage() {
   }, [router, session, status]);
 
   const handleRankArtist = async (artistId: any, tierId: any) => {
-    try {
-      // Si el artista ya está clasificado con este tier, quitarlo
-      const newRankings = { ...rankings };
+    const isToggle = rankings[artistId] === tierId;
+    const newRankings = { ...rankings };
 
-      if (rankings[artistId] === tierId) {
-        delete newRankings[artistId];
-        setRankings(newRankings);
-      } else {
-        // Si no, clasificarlo o cambiar su clasificación
-        newRankings[artistId] = tierId;
-        setRankings(newRankings);
-      }
+    if (isToggle) {
+      delete newRankings[artistId];
+    } else {
+      newRankings[artistId] = tierId;
+    }
+    setRankings(newRankings);
 
-      // Cancelar la llamada anterior si existe (debounce)
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
 
-      // Esperar 500ms antes de enviar a la API
-      debounceRef.current = setTimeout(async () => {
-        try {
-          const response = await fetch("/api/rankings", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              playlistId,
-              artistId,
-              tierId: rankings[artistId] === tierId ? null : tierId,
-              privateName: getSelectedPlaylist()?.privateName,
-            }),
-          });
+    const action = { artistId, tierId: isToggle ? null : tierId };
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/rankings", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            playlistId,
+            artistId: action.artistId,
+            tierId: action.tierId,
+            privateName: getSelectedPlaylist()?.privateName,
+          }),
+        });
 
-          if (!response.ok) {
-            console.error("Error al guardar ranking:", await response.text());
-            setRankings({ ...rankings });
-            toast({
-              title: "Error",
-              description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
-              variant: "destructive",
-            });
-          }
-        } catch (error: any) {
-          console.error("Error al guardar ranking:", error);
-          setRankings({ ...rankings });
+        if (!response.ok) {
+          console.error("Error al guardar ranking:", await response.text());
           toast({
             title: "Error",
             description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
             variant: "destructive",
           });
         }
-      }, 500);
-    } catch (error: any) {
-      console.error("Error al guardar ranking:", error);
-      setRankings({ ...rankings });
-      toast({
-        title: "Error",
-        description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    }
+      } catch (error: any) {
+        console.error("Error al guardar ranking:", error);
+        toast({
+          title: "Error",
+          description: "Error al guardar el ranking. Por favor, inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      }
+    }, 500);
   };
 
   const handlePlayTrack = (artist: any, trackIndex: any) => {
@@ -417,6 +407,7 @@ export default function TierlistPage() {
                     alt={playlistName}
                     fill
                     className="object-cover"
+                    onError={(e) => handlePlaylistImageError(playlistId, e.target)}
                   />
                 </div>
               )}
@@ -434,7 +425,9 @@ export default function TierlistPage() {
                 artists={artists}
                 rankings={rankings}
               />
-              <Link href="/import-playlist">
+              <ImportPlaylistModal
+                onPlaylistImported={() => window.location.reload()}
+              >
                 <Button
                   variant="outline"
                   size="sm"
@@ -444,7 +437,7 @@ export default function TierlistPage() {
                 >
                   Cambiar Playlist
                 </Button>
-              </Link>
+              </ImportPlaylistModal>
             </div>
           </div>
 
