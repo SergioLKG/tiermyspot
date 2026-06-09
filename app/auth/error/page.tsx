@@ -25,7 +25,7 @@ export default function AuthErrorPage() {
         <Logo />
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-4 bg-muted/30">
+      <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center text-destructive mb-2">

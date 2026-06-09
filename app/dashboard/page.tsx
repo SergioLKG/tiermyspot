@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Import, X, AlertTriangle, Check, AlertCircle } from "lucide-react";
+import { DashboardSkeleton } from "@/components/skeletons/dashboard-skeleton";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { ImportPlaylistModal } from "@/components/import-playlist-modal";
@@ -198,20 +199,13 @@ export default function Dashboard() {
 
   // Show loading screen while checking session
   if (status === "loading" || isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-sm text-muted-foreground">Cargando...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header activePage="dashboard" />
-      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
+      <main id="main-content" className="flex-1 p-4 md:p-6">
         <div className="grid gap-4 md:gap-8 max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold">
@@ -285,7 +279,6 @@ export default function Dashboard() {
                         side="bottom"
                         sideOffset={5}
                         className="p-3 max-w-xs"
-                        forceMount
                       >
                         <div className="flex items-center">
                           <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
@@ -344,7 +337,6 @@ export default function Dashboard() {
                           side="bottom"
                           sideOffset={5}
                           className="p-3 max-w-xs"
-                          forceMount
                         >
                           <div className="flex items-center">
                             <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
@@ -375,7 +367,7 @@ export default function Dashboard() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {publicPlaylists.map((playlist) => (
-                  <Card key={playlist.id} className="overflow-hidden">
+                  <Card key={playlist.id} className="bg-muted/30 overflow-hidden">
                     <div className="relative h-32">
                       <Image
                         src={playlist.image || "/placeholder.svg"}
@@ -471,7 +463,7 @@ export default function Dashboard() {
                   {privatePlaylists.map((playlist) => (
                   <Card
                     key={`${playlist.id}-${playlist.privateName}`}
-                    className="overflow-hidden"
+                    className="bg-muted/30 overflow-hidden"
                   >
                     <div className="relative h-32">
                       <Image

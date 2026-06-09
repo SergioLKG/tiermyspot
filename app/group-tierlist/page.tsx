@@ -6,10 +6,22 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Loader2, Users, AlertTriangle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Search, Users, AlertTriangle, Share2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { TierlistSkeleton } from "@/components/skeletons/tierlist-skeleton";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { getSelectedPlaylist } from "@/lib/playlist-selection";
+import {
+  getSelectedPlaylist,
+  setSelectedPlaylist,
+} from "@/lib/playlist-selection";
 import { ArtistCard } from "@/components/artist-card";
 import { NoPlaylistModal } from "@/components/no-playlist-modal";
 import { UserVotesPopup } from "@/components/user-votes-popup";
@@ -67,7 +79,9 @@ export default function GroupTierlistPage() {
   const [playingTrack, setPlayingTrack] = useState<any>(null);
   const [audio, setAudio] = useState<any>(null);
   const [artists, setArtists] = useState<any[]>([]);
-  const [currentTrackIndices, setCurrentTrackIndices] = useState<Record<string, number>>({});
+  const [currentTrackIndices, setCurrentTrackIndices] = useState<
+    Record<string, number>
+  >({});
   const [playlistName, setPlaylistName] = useState("");
   const [playlistImage, setPlaylistImage] = useState("");
   const [playlistId, setPlaylistId] = useState("");
@@ -78,9 +92,38 @@ export default function GroupTierlistPage() {
   const [error, setError] = useState<any>(null);
   const [showNoPlaylistModal, setShowNoPlaylistModal] = useState(false);
   const [usersData, setUsersData] = useState<Record<string, any>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const tierlistRef = useRef(null);
+  const { toast } = useToast();
+
+  const handleShare = () => {
+    const privateName = getSelectedPlaylist()?.privateName || "";
+    const url = new URL(window.location.href);
+    url.searchParams.set("playlistId", playlistId);
+    if (privateName) {
+      url.searchParams.set("privateName", privateName);
+    }
+    navigator.clipboard
+      .writeText(url.toString())
+      .then(() => {
+        toast({
+          title: "Enlace copiado",
+          description:
+            "Comparte este enlace para que otros voten en esta playlist",
+        });
+      })
+      .catch(() => {
+        toast({
+          title: "Error",
+          description: "No se pudo copiar el enlace",
+          variant: "destructive",
+        });
+      });
+  };
 
   // Redirigir al login si no hay sesión
   useEffect(() => {
@@ -100,10 +143,30 @@ export default function GroupTierlistPage() {
         setIsLoading(true);
         setError(null);
 
-        // Obtener la playlist seleccionada de la cookie
-        const selectedPlaylist = getSelectedPlaylist();
+        let selectedPlaylist = getSelectedPlaylist();
 
-        // Si no hay playlist seleccionada, mostrar el modal
+        // Si hay parámetros de URL, usarlos para seleccionar la playlist
+        const urlPlaylistId = searchParams.get("playlistId");
+        const urlPrivateName = searchParams.get("privateName");
+        if (urlPlaylistId && !selectedPlaylist) {
+          try {
+            const resolveRes = await fetch(`/api/playlists/${urlPlaylistId}`);
+            if (resolveRes.ok) {
+              const resolveData = await resolveRes.json();
+              selectedPlaylist = {
+                id: urlPlaylistId,
+                name: resolveData.name,
+                image: resolveData.image,
+                isPrivate: !!urlPrivateName,
+                privateName: urlPrivateName || undefined,
+              };
+              setSelectedPlaylist(selectedPlaylist);
+            }
+          } catch (e) {
+            // Si falla, seguimos con la cookie
+          }
+        }
+
         if (!selectedPlaylist) {
           setShowNoPlaylistModal(true);
           setIsLoading(false);
@@ -115,13 +178,13 @@ export default function GroupTierlistPage() {
 
         // Obtener datos de la tierlist grupal
         const response = await fetch(
-          `/api/group-tierlists?playlistId=${playlistId}&privateName=${privateName}`
+          `/api/group-tierlists?playlistId=${playlistId}&privateName=${privateName}`,
         );
 
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(
-            errorData.error || "Error al cargar la tierlist grupal"
+            errorData.error || "Error al cargar la tierlist grupal",
           );
         }
 
@@ -132,14 +195,14 @@ export default function GroupTierlistPage() {
         setPlaylistName(data.playlist.name);
         if (selectedPlaylist.isPrivate && selectedPlaylist.privateName) {
           setPlaylistName(
-            `${data.playlist.name} (${selectedPlaylist.privateName})`
+            `${data.playlist.name} (${selectedPlaylist.privateName})`,
           );
         }
         setPlaylistImage(data.playlist.image);
         setSpotifyPlaylistUrl(
           data.playlist.spotify_id
             ? `https://open.spotify.com/playlist/${data.playlist.spotify_id}`
-            : ""
+            : "",
         );
         setArtists(data.playlist.artists);
 
@@ -160,7 +223,7 @@ export default function GroupTierlistPage() {
             ? `&privateName=${encodeURIComponent(selectedPlaylist.privateName)}`
             : "";
           const votesResponse = await fetch(
-            `/api/group-tierlist/${playlistId}?t=${Date.now()}${privateNameParam}`
+            `/api/group-tierlist/${playlistId}?t=${Date.now()}${privateNameParam}`,
           );
           if (votesResponse.ok) {
             const votesData = await votesResponse.json();
@@ -169,6 +232,9 @@ export default function GroupTierlistPage() {
             // Obtener información de usuarios si está disponible
             if (votesData.users) {
               setUsersData(votesData.users);
+            }
+            if (votesData.currentUserId) {
+              setCurrentUserId(votesData.currentUserId);
             }
           }
         } catch (votesError) {
@@ -190,7 +256,7 @@ export default function GroupTierlistPage() {
     const track = artist.tracks[trackIndex];
     if (!track || !track.previewUrl) {
       console.error(
-        "No hay URL de previsualización disponible para esta pista"
+        "No hay URL de previsualización disponible para esta pista",
       );
       return;
     }
@@ -274,16 +340,7 @@ export default function GroupTierlistPage() {
 
   // Mostrar pantalla de carga mientras se verifica la sesión o se cargan los datos
   if (status === "loading" || isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Cargando la tierlist grupal...
-          </p>
-        </div>
-      </div>
-    );
+    return <TierlistSkeleton isGroup />;
   }
 
   // Si no hay sesión, redirigir al login
@@ -296,7 +353,10 @@ export default function GroupTierlistPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="group" />
-        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+        <main
+          id="main-content"
+          className="flex-1 p-4 md:p-6 flex items-center justify-center"
+        >
           <div className="max-w-md w-full">
             <div className="bg-destructive/10 p-6 rounded-lg border border-destructive/20 flex flex-col items-center">
               <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
@@ -342,7 +402,7 @@ export default function GroupTierlistPage() {
     <div className="flex flex-col min-h-screen">
       <Header activePage="group" />
 
-      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30">
+      <main id="main-content" className="flex-1 p-4 md:p-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -353,7 +413,9 @@ export default function GroupTierlistPage() {
                     alt={playlistName}
                     fill
                     className="object-cover"
-                    onError={(e) => handlePlaylistImageError(playlistId, e.target)}
+                    onError={(e) =>
+                      handlePlaylistImageError(playlistId, e.target)
+                    }
                   />
                 </div>
               )}
@@ -377,15 +439,78 @@ export default function GroupTierlistPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium flex items-center">
-                <Users className="h-4 w-4 mr-1" />
-                <span className="me-1">{userCount}</span>
-                <span className="hidden sm:block">
-                  {" "}
-                  {userCount === 1 ? " persona ha" : " personas han"} calificado
-                  esta playlist
+              <button
+                onClick={() => setDialogOpen(true)}
+                className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium flex items-center hover:bg-primary/20 transition-colors cursor-pointer"
+                title="Ver quiénes han votado"
+                aria-label={`Ver usuarios que han calificado esta playlist (${userCount} ${userCount === 1 ? "persona" : "personas"})`}
+              >
+                <span className="flex items-center justify-center align-middle gap-0.5 cursor-pointer select-none pointer-events-none">
+                  <Users className="h-4 w-4 mr-1 cursor-pointer select-none pointer-events-none" />
+                  {userCount}
+                  {userCount === 1 ? " participante" : " participantes"}
                 </span>
-              </div>
+              </button>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Usuarios que han calificado</DialogTitle>
+                  </DialogHeader>
+                  <div className="max-h-80 overflow-y-auto -mx-6 px-6">
+                    {Object.keys(usersData).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        Aún no hay votos
+                      </p>
+                    ) : (
+                      <ul className="divide-y">
+                        {Object.entries(usersData).map(([userId, user]) => {
+                          const isCurrentUser = userId === currentUserId;
+                          return (
+                            <li
+                              key={userId}
+                              className={`flex items-center gap-3 py-3 ${isCurrentUser ? "font-medium" : ""}`}
+                            >
+                              <div className="relative h-9 w-9 rounded-full overflow-hidden bg-muted shrink-0">
+                                <Image
+                                  src={user.image || "/placeholder.svg"}
+                                  alt={user.name || "Usuario"}
+                                  fill
+                                  className="object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src =
+                                      "/placeholder.svg";
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm truncate">
+                                  {user.name || "Usuario desconocido"}
+                                  {isCurrentUser && (
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                      (tú)
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                title="Compartir tierlist grupal"
+                aria-label="Compartir tierlist grupal"
+                className="transition-all hover:bg-primary hover:text-primary-foreground"
+              >
+                <Share2 className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Compartir</span>
+              </Button>
               <TierlistExport
                 playlistName={playlistName}
                 playlistImage={playlistImage}
@@ -407,80 +532,136 @@ export default function GroupTierlistPage() {
             </div>
           </div>
 
-          <div className="grid gap-4" ref={tierlistRef}>
-            {TIERS.map((tier) => (
-              <div
-                key={tier.id}
-                className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}
-              >
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm aspect-square">
-                    {tier.label}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {artists
-                      .filter(
-                        (artist: any) =>
-                          groupRankings[artist.id]?.tier === tier.id
-                      )
-                      .map((artist: any) => (
-                        <ArtistCard
-                          key={artist.id}
-                          artist={artist}
-                          currentTrackIndex={
-                            currentTrackIndices[artist.id] || 0
-                          }
-                          playingTrackId={playingTrack}
-                          onPlay={handlePlayTrack}
-                          onNext={handleNextTrack}
-                          onPrev={handlePrevTrack}
-                        >
-                          {/* Añadir el popup de votos de usuarios */}
-                          <div className="mt-2 flex justify-center">
-                            <UserVotesPopup
-                              artistName={artist.name}
-                              votes={userVotes[artist.id] || []}
-                              users={usersData}
-                            />
-                          </div>
-                        </ArtistCard>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          {(() => {
+            const filteredArtists = searchQuery
+              ? artists.filter((a: any) =>
+                  a.name?.toLowerCase().includes(searchQuery.toLowerCase()),
+                )
+              : artists;
 
-          <div className="mt-8">
-            <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
-            <div className="flex flex-wrap gap-4">
-              {artists
-                .filter((artist: any) => !groupRankings[artist.id]?.tier)
-                .map((artist: any) => (
-                  <ArtistCard
-                    key={artist.id}
-                    artist={artist}
-                    currentTrackIndex={currentTrackIndices[artist.id] || 0}
-                    playingTrackId={playingTrack}
-                    onPlay={handlePlayTrack}
-                    onNext={handleNextTrack}
-                    onPrev={handlePrevTrack}
-                  >
-                    {/* Añadir el popup de votos de usuarios si hay votos */}
-                    {userVotes[artist.id] &&
-                      userVotes[artist.id].length > 0 && (
-                        <div className="mt-2 flex justify-center">
-                          <UserVotesPopup
-                            artistName={artist.name}
-                            votes={userVotes[artist.id] || []}
-                            users={usersData}
-                          />
+            return (
+              <>
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar artistas..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                    aria-label="Buscar artistas por nombre"
+                  />
+                </div>
+
+                <div
+                  className="grid gap-4"
+                  ref={tierlistRef}
+                  role="region"
+                  aria-label="Tiers de clasificación"
+                >
+                  {TIERS.map((tier, tierIndex) => (
+                    <div
+                      key={tier.id}
+                      className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2`}
+                      style={{
+                        animationDelay: `${tierIndex * 80}ms`,
+                        animationFillMode: "backwards",
+                      }}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm aspect-square">
+                          {tier.label}
                         </div>
-                      )}
-                  </ArtistCard>
-                ))}
-            </div>
-          </div>
+                        <div className="flex flex-wrap gap-3">
+                          {filteredArtists
+                            .filter(
+                              (artist: any) =>
+                                groupRankings[artist.id]?.tier === tier.id,
+                            )
+                            .map((artist: any) => (
+                              <ArtistCard
+                                key={artist.id}
+                                artist={artist}
+                                currentTrackIndex={
+                                  currentTrackIndices[artist.id] || 0
+                                }
+                                playingTrackId={playingTrack}
+                                onPlay={handlePlayTrack}
+                                onNext={handleNextTrack}
+                                onPrev={handlePrevTrack}
+                              >
+                                {/* Añadir el popup de votos de usuarios */}
+                                <div className="mt-2 flex justify-center">
+                                  <UserVotesPopup
+                                    artistName={artist.name}
+                                    votes={userVotes[artist.id] || []}
+                                    users={usersData}
+                                  />
+                                </div>
+                              </ArtistCard>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  className="mt-8"
+                  role="region"
+                  aria-label="Artistas sin clasificar"
+                >
+                  <h2 className="text-xl font-bold mb-4">
+                    Artistas sin clasificar
+                  </h2>
+                  {(() => {
+                    const unclassified = filteredArtists.filter(
+                      (artist: any) => !groupRankings[artist.id]?.tier,
+                    );
+                    if (unclassified.length === 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          {filteredArtists.length === 0
+                            ? searchQuery
+                              ? "No se encontraron artistas"
+                              : "No hay artistas en esta playlist"
+                            : "¡Todos los artistas han sido clasificados!"}
+                        </p>
+                      );
+                    }
+                    return (
+                      <div className="flex flex-wrap gap-4">
+                        {unclassified.map((artist: any) => (
+                          <ArtistCard
+                            key={artist.id}
+                            artist={artist}
+                            currentTrackIndex={
+                              currentTrackIndices[artist.id] || 0
+                            }
+                            playingTrackId={playingTrack}
+                            onPlay={handlePlayTrack}
+                            onNext={handleNextTrack}
+                            onPrev={handlePrevTrack}
+                          >
+                            {/* Añadir el popup de votos de usuarios si hay votos */}
+                            {userVotes[artist.id] &&
+                              userVotes[artist.id].length > 0 && (
+                                <div className="mt-2 flex justify-center">
+                                  <UserVotesPopup
+                                    artistName={artist.name}
+                                    votes={userVotes[artist.id] || []}
+                                    users={usersData}
+                                  />
+                                </div>
+                              )}
+                          </ArtistCard>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </main>
 

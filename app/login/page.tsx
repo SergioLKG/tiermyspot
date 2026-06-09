@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
+import { LoginSkeleton } from "@/components/skeletons/login-skeleton";
 import { SpotifyButton } from "@/components/ui/spotify-button";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
@@ -71,16 +72,7 @@ export default function LoginPage() {
 
   // Show loading screen while checking session
   if (status === "loading" || isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Conectando con Spotify...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoginSkeleton />;
   }
 
   return (

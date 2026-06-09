@@ -6,7 +6,9 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { TierlistSkeleton } from "@/components/skeletons/tierlist-skeleton";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { getSelectedPlaylist } from "@/lib/playlist-selection";
@@ -80,6 +82,7 @@ export default function TierlistPage() {
   const [error, setError]: any = useState<any>(null);
   const [loadingMessage, setLoadingMessage]: any = useState("");
   const [showNoPlaylistModal, setShowNoPlaylistModal]: any = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const router: any = useRouter();
   const searchParams: any = useSearchParams();
   const tierlistRef: any = useRef(null);
@@ -328,16 +331,7 @@ export default function TierlistPage() {
 
   // Mostrar pantalla de carga mientras se verifica la sesión o se cargan los datos
   if (status === "loading" || isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">
-            {loadingMessage || "Cargando tu tierlist..."}
-          </p>
-        </div>
-      </div>
-    );
+    return <TierlistSkeleton />;
   }
 
   // Si no hay sesión, redirigir al login
@@ -462,104 +456,142 @@ export default function TierlistPage() {
             </div>
           </div>
 
-          <div className="grid gap-4" ref={tierlistRef}>
-            {TIERS.map((tier) => (
-              <div
-                key={tier.id}
-                className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all`}
-              >
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm aspect-square">
-                    {tier.label}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {artists
-                      .filter((artist: any) => rankings[artist.id] === tier.id)
-                      .map((artist: any) => (
-                        <ArtistCard
-                          key={artist.id}
-                          artist={artist}
-                          currentTrackIndex={
-                            currentTrackIndices[artist.id] || 0
-                          }
-                          playingTrackId={playingTrack}
-                          onPlay={handlePlayTrack}
-                          onNext={handleNextTrack}
-                          onPrev={handlePrevTrack}
-                        >
-                          <div className="grid grid-cols-3 gap-1.5 mt-2">
-                            {TIERS.map((t) => (
-                              <Button
-                                key={t.id}
-                                variant={
-                                  t.id === tier.id ? "default" : "outline"
-                                }
-                                size="sm"
-                                className={`h-5 px-1 text-xs transition-all ${
-                                  t.id === tier.id
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                    : "hover:bg-muted"
-                                }`}
-                                onClick={() =>
-                                  handleRankArtist(artist.id, t.id)
-                                }
-                                title={
-                                  t.id === tier.id
-                                    ? "Haz clic para quitar de este tier"
-                                    : `Mover a tier ${t.label}`
-                                }
-                                aria-label={
-                                  t.id === tier.id
-                                    ? "Haz clic para quitar de este tier"
-                                    : `Mover a tier ${t.label}`
-                                }
-                              >
-                                {t.label}
-                              </Button>
-                            ))}
-                          </div>
-                        </ArtistCard>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          {(() => {
+            const filteredArtists = searchQuery
+              ? artists.filter((a: any) =>
+                  a.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+              : artists;
 
-          <div className="mt-8">
-            <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
-            <div className="flex flex-wrap gap-4">
-              {artists
-                .filter((artist: any) => !rankings[artist.id])
-                .map((artist: any) => (
-                  <ArtistCard
-                    key={artist.id}
-                    artist={artist}
-                    currentTrackIndex={currentTrackIndices[artist.id] || 0}
-                    playingTrackId={playingTrack}
-                    onPlay={handlePlayTrack}
-                    onNext={handleNextTrack}
-                    onPrev={handlePrevTrack}
-                  >
-                    <div className="grid grid-cols-3 gap-1 mt-2">
-                      {TIERS.map((tier) => (
-                        <Button
-                          key={tier.id}
-                          variant="outline"
-                          title={`Mover a tier ${tier.label}`}
-                          aria-label={`Mover a tier ${tier.label}`}
-                          size="sm"
-                          className="h-8 px-2 transition-all hover:bg-muted"
-                          onClick={() => handleRankArtist(artist.id, tier.id)}
-                        >
+            return (
+              <>
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar artistas..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                    aria-label="Buscar artistas por nombre"
+                  />
+                </div>
+
+                <div className="grid gap-4" ref={tierlistRef} role="region" aria-label="Tiers de clasificación">
+                  {TIERS.map((tier, tierIndex) => (
+                    <div
+                      key={tier.id}
+                      className={`${tier.color} rounded-lg p-4 border shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2`}
+                      style={{ animationDelay: `${tierIndex * 80}ms`, animationFillMode: "backwards" }}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="w-12 h-12 flex items-center justify-center font-bold text-2xl rounded-md bg-background/80 backdrop-blur-sm shadow-sm aspect-square">
                           {tier.label}
-                        </Button>
-                      ))}
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          {filteredArtists
+                            .filter((artist: any) => rankings[artist.id] === tier.id)
+                            .map((artist: any) => (
+                              <ArtistCard
+                                key={artist.id}
+                                artist={artist}
+                                currentTrackIndex={
+                                  currentTrackIndices[artist.id] || 0
+                                }
+                                playingTrackId={playingTrack}
+                                onPlay={handlePlayTrack}
+                                onNext={handleNextTrack}
+                                onPrev={handlePrevTrack}
+                              >
+                                <div className="grid grid-cols-3 gap-1.5 mt-2">
+                                  {TIERS.map((t) => (
+                                    <Button
+                                      key={t.id}
+                                      variant={
+                                        t.id === tier.id ? "default" : "outline"
+                                      }
+                                      size="sm"
+                                      className={`h-5 px-1 text-xs transition-all ${
+                                        t.id === tier.id
+                                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                          : "hover:bg-muted"
+                                      }`}
+                                      onClick={() =>
+                                        handleRankArtist(artist.id, t.id)
+                                      }
+                                      title={
+                                        t.id === tier.id
+                                          ? "Haz clic para quitar de este tier"
+                                          : `Mover a tier ${t.label}`
+                                      }
+                                      aria-label={
+                                        t.id === tier.id
+                                          ? "Haz clic para quitar de este tier"
+                                          : `Mover a tier ${t.label}`
+                                      }
+                                    >
+                                      {t.label}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </ArtistCard>
+                            ))}
+                        </div>
+                      </div>
                     </div>
-                  </ArtistCard>
-                ))}
-            </div>
+                  ))}
+                </div>
+
+                <div className="mt-8" role="region" aria-label="Artistas sin clasificar">
+                  <h2 className="text-xl font-bold mb-4">Artistas sin clasificar</h2>
+                  {(() => {
+                    const unclassified = filteredArtists.filter((artist: any) => !rankings[artist.id]);
+                    if (unclassified.length === 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          {filteredArtists.length === 0
+                            ? searchQuery
+                              ? "No se encontraron artistas"
+                              : "No hay artistas en esta playlist"
+                            : "¡Todos los artistas han sido clasificados!"}
+                        </p>
+                      );
+                    }
+              return (
+                <div className="flex flex-wrap gap-4">
+                  {unclassified.map((artist: any) => (
+                    <ArtistCard
+                      key={artist.id}
+                      artist={artist}
+                      currentTrackIndex={currentTrackIndices[artist.id] || 0}
+                      playingTrackId={playingTrack}
+                      onPlay={handlePlayTrack}
+                      onNext={handleNextTrack}
+                      onPrev={handlePrevTrack}
+                    >
+                      <div className="grid grid-cols-3 gap-1 mt-2">
+                        {TIERS.map((tier) => (
+                          <Button
+                            key={tier.id}
+                            variant="outline"
+                            title={`Mover a tier ${tier.label}`}
+                            aria-label={`Mover a tier ${tier.label}`}
+                            size="sm"
+                            className="h-8 px-2 transition-all hover:bg-muted"
+                            onClick={() => handleRankArtist(artist.id, tier.id)}
+                          >
+                            {tier.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </ArtistCard>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
+        </>
+      );
+    })()}
         </div>
       </main>
 

@@ -32,7 +32,7 @@ export function ArtistCard({ artist, children, ...props }: { artist: any; childr
     : null;
 
   return (
-    <Card className="w-[160px] transition-all hover:shadow-md">
+    <Card className="w-[160px] transition-all hover:shadow-md hover:scale-[1.02]">
       <CardContent className="p-3">
         <div className="relative mb-2 group">
           <Image

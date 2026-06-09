@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Import, AlertTriangle } from "lucide-react";
+import { ImportSkeleton } from "@/components/skeletons/import-skeleton";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { setSelectedPlaylist } from "@/lib/playlist-selection";
@@ -110,14 +111,7 @@ export default function ImportPlaylistPage() {
 
   // Mostrar pantalla de carga mientras se verifica la sesión
   if (status === "loading") {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Cargando...</p>
-        </div>
-      </div>
-    );
+    return <ImportSkeleton />;
   }
 
   // Si es un usuario demo, mostrar mensaje de restricción
@@ -125,7 +119,7 @@ export default function ImportPlaylistPage() {
     return (
       <div className="flex flex-col min-h-screen">
         <Header activePage="import" />
-        <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+        <main id="main-content" className="flex-1 p-4 md:p-6 flex items-center justify-center">
           <div className="max-w-md w-full">
             <div className="bg-card p-6 rounded-lg border shadow-sm">
               <div className="flex flex-col items-center text-center gap-4">
@@ -162,7 +156,7 @@ export default function ImportPlaylistPage() {
     <div className="flex flex-col min-h-screen">
       <Header activePage="import" />
 
-      <main id="main-content" className="flex-1 p-4 md:p-6 bg-muted/30 flex items-center justify-center">
+      <main id="main-content" className="flex-1 p-4 md:p-6 flex items-center justify-center">
         <div className="max-w-md w-full">
           <div className="bg-card p-6 rounded-lg border shadow-sm">
             <h1 className="text-2xl font-bold mb-6">Importar Playlist</h1>
