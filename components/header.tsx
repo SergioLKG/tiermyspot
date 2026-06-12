@@ -7,12 +7,6 @@ import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { LogOut, Import, AlertCircle, Menu, X } from "lucide-react";
 import { Logo } from "@/components/logo";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 function NavLinks({ activePage, isDemo, session, onClickLink }: any) {
   return (
@@ -45,39 +39,7 @@ function NavLinks({ activePage, isDemo, session, onClickLink }: any) {
         Tierlist Grupal
       </Link>
 
-      {isDemo ? (
-        <TooltipProvider delayDuration={100} skipDelayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1 opacity-60 cursor-not-allowed w-full"
-                  title="Importar Playlist"
-                  aria-label="Importar Playlist"
-                >
-                  <Import className="h-4 w-4" />
-                  <span>Importar Playlist</span>
-                </Button>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent
-              side="bottom"
-              sideOffset={5}
-              className="p-3 max-w-xs"
-            >
-              <div className="flex items-center">
-                <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
-                <p>
-                  Esta función no está disponible en modo demo. Usa las
-                  playlists predefinidas para probar la aplicación.
-                </p>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
+      {!isDemo ? (
         <Link
           href="/import-playlist"
           className={`text-sm font-medium transition-colors hover:text-primary ${
@@ -96,7 +58,7 @@ function NavLinks({ activePage, isDemo, session, onClickLink }: any) {
             <span>Importar Playlist</span>
           </Button>
         </Link>
-      )}
+      ) : null}
 
       {session?.user && (
         <div className="flex items-center gap-2">
@@ -106,9 +68,7 @@ function NavLinks({ activePage, isDemo, session, onClickLink }: any) {
               alt={session.user.name || "Usuario"}
               fill
               className={
-                session.user.image
-                  ? "object-cover"
-                  : "scale-150 object-cover"
+                session.user.image ? "object-cover" : "scale-150 object-cover"
               }
             />
           </div>
@@ -159,7 +119,11 @@ export function Header({ activePage = "" }) {
           aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={mobileOpen}
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </button>
       </div>
 

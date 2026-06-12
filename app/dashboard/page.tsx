@@ -32,12 +32,6 @@ import {
   setSelectedPlaylist,
   clearSelectedPlaylist,
 } from "@/lib/playlist-selection";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { prefetchDNS } from "react-dom";
 
 export default function Dashboard() {
@@ -185,10 +179,10 @@ export default function Dashboard() {
 
       // Actualizar la lista de playlists
       setPublicPlaylists(
-        publicPlaylists.filter((playlist) => playlist.id !== playlistId)
+        publicPlaylists.filter((playlist) => playlist.id !== playlistId),
       );
       setPrivatePlaylists(
-        privatePlaylists.filter((playlist) => playlist.id !== playlistId)
+        privatePlaylists.filter((playlist) => playlist.id !== playlistId),
       );
 
       setConfirmDialog({ open: false, playlistId: null, playlistName: "" });
@@ -257,41 +251,7 @@ export default function Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {isDemo ? (
-                  <TooltipProvider delayDuration={100} skipDelayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-1 opacity-60 cursor-not-allowed"
-                          title="Importar Playlist"
-                          aria-label="Importar Playlist"
-                          disabled
-                        >
-                          <Import className="h-4 w-4" />
-                          <span className="hidden sm:inline-block">
-                            Importar Playlist
-                          </span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="bottom"
-                        sideOffset={5}
-                        className="p-3 max-w-xs"
-                      >
-                        <div className="flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
-                          <p>
-                            Esta función no está disponible en modo demo. Usa
-                            las playlists predefinidas para probar la
-                            aplicación.
-                          </p>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
+                {!isDemo ? (
                   <ImportPlaylistModal
                     onPlaylistImported={() => window.location.reload()}
                   >
@@ -304,7 +264,7 @@ export default function Dashboard() {
                       Importar Playlist
                     </Button>
                   </ImportPlaylistModal>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           </div>
@@ -318,38 +278,7 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mb-4">
                     No tienes playlists públicas
                   </p>
-                  {isDemo ? (
-                    <TooltipProvider delayDuration={100} skipDelayDuration={0}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-1 opacity-60 cursor-not-allowed"
-                            title="Importar Playlist"
-                            aria-label="Importar Playlist"
-                            disabled
-                          >
-                            Importar Playlist
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="bottom"
-                          sideOffset={5}
-                          className="p-3 max-w-xs"
-                        >
-                          <div className="flex items-center">
-                            <AlertCircle className="h-4 w-4 mr-2 text-amber-500 flex-shrink-0" />
-                            <p>
-                              Esta función no está disponible en modo demo. Usa
-                              las playlists predefinidas para probar la
-                              aplicación.
-                            </p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
+                  {!isDemo ? (
                     <ImportPlaylistModal
                       onPlaylistImported={() => window.location.reload()}
                     >
@@ -361,20 +290,25 @@ export default function Dashboard() {
                         Importar Playlist
                       </Button>
                     </ImportPlaylistModal>
-                  )}
+                  ) : null}
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {publicPlaylists.map((playlist) => (
-                  <Card key={playlist.id} className="bg-muted/30 overflow-hidden">
+                  <Card
+                    key={playlist.id}
+                    className="bg-muted/30 overflow-hidden"
+                  >
                     <div className="relative h-32">
                       <Image
                         src={playlist.image || "/placeholder.svg"}
                         alt={playlist.name}
                         fill
                         className="object-cover"
-                        onError={(e) => handlePlaylistImageError(playlist.id, e.target)}
+                        onError={(e) =>
+                          handlePlaylistImageError(playlist.id, e.target)
+                        }
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
                         <div>
@@ -460,7 +394,7 @@ export default function Dashboard() {
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {privatePlaylists.map((playlist) => (
+                {privatePlaylists.map((playlist) => (
                   <Card
                     key={`${playlist.id}-${playlist.privateName}`}
                     className="bg-muted/30 overflow-hidden"
@@ -472,7 +406,9 @@ export default function Dashboard() {
                         fill
                         loading="eager"
                         className="object-cover"
-                        onError={(e) => handlePlaylistImageError(playlist.id, e.target)}
+                        onError={(e) =>
+                          handlePlaylistImageError(playlist.id, e.target)
+                        }
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-3">
                         <div>
@@ -588,7 +524,7 @@ export default function Dashboard() {
               onClick={() => {
                 isDemo
                   ? console.log(
-                      "Nothing happens... it's because this is a demo?"
+                      "Nothing happens... it's because this is a demo?",
                     )
                   : hidePlaylist(confirmDialog.playlistId);
               }}
