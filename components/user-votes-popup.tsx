@@ -112,8 +112,7 @@ export function UserVotesPopup({
                       </span>
                       <span
                         className={`flex items-center justify-center h-6 w-6 rounded-md font-bold text-sm ${
-                          TIER_COLORS[vote.tier] ||
-                          "bg-gray-100 text-gray-800"
+                          TIER_COLORS[vote.tier] || "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {vote.tier}
